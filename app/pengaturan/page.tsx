@@ -54,6 +54,7 @@ export default function PengaturanPage() {
         .save-btn { transition: all 0.2s; }
         .save-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(168,85,247,0.35); }
         .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(240deg); cursor: pointer; }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
