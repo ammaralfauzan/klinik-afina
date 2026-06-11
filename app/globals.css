@@ -56,3 +56,12 @@ body {
   /* Fix page title overflow */
   h1 { font-size: 20px !important; }
 }
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-grid { grid-template-columns: 1fr !important; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table { min-width: 480px; }
+}
