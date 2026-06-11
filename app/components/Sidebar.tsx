@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "./ThemeProvider";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings } from "lucide-react";
 
 const navItems = [
@@ -13,6 +14,11 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { dark } = useTheme();
+
+  const sidebarBg = dark
+    ? "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)"
+    : "linear-gradient(180deg, #3b0764 0%, #6b21a8 50%, #4a1272 100%)";
 
   return (
     <>
@@ -21,48 +27,40 @@ export default function Sidebar() {
           0%, 100% { filter: drop-shadow(0 0 3px rgba(236,72,153,0.4)); transform: scale(1); }
           50% { filter: drop-shadow(0 0 8px rgba(236,72,153,0.9)); transform: scale(1.12); }
         }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-3px); }
         }
-        @keyframes scanline {
-          0% { top: 0%; }
-          100% { top: 100%; }
-        }
         .nav-icon-active { animation: pulse-glow 2s ease-in-out infinite; }
         .nav-icon-settings { animation: spin-slow 6s linear infinite; }
         .nav-icon-default { animation: float 3s ease-in-out infinite; }
-        .sidebar-glow {
-          box-shadow: 4px 0 30px rgba(168,85,247,0.3), inset -1px 0 0 rgba(255,255,255,0.05);
+        .nav-link { border: 1px solid transparent; }
+        .nav-link:hover {
+          background: rgba(236,72,153,0.15) !important;
+          border-color: rgba(236,72,153,0.25) !important;
         }
         .nav-link-active {
           background: linear-gradient(135deg, rgba(236,72,153,0.25), rgba(168,85,247,0.25)) !important;
-          border: 1px solid rgba(236,72,153,0.4) !important;
+          border-color: rgba(236,72,153,0.4) !important;
           box-shadow: 0 0 12px rgba(236,72,153,0.15) !important;
         }
-        .nav-link:hover {
-          background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.15)) !important;
-          border: 1px solid rgba(236,72,153,0.25) !important;
-        }
       `}</style>
-      <aside className="sidebar-glow" style={{
+      <aside style={{
         width: "230px", minHeight: "100vh", position: "relative", overflow: "hidden",
-        background: "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)",
-        display: "flex", flexDirection: "column",
+        background: sidebarBg, display: "flex", flexDirection: "column",
+        boxShadow: "4px 0 30px rgba(168,85,247,0.3), inset -1px 0 0 rgba(255,255,255,0.05)",
+        flexShrink: 0,
       }}>
-        {/* Grid background */}
+        {/* Grid bg */}
         <div style={{
-          position: "absolute", inset: 0, opacity: 0.07,
+          position: "absolute", inset: 0, opacity: 0.07, pointerEvents: "none",
           backgroundImage: "linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)",
-          backgroundSize: "24px 24px", pointerEvents: "none"
+          backgroundSize: "24px 24px",
         }} />
 
         {/* Logo */}
-        <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
+        <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.15)", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{
               width: "40px", height: "40px", borderRadius: "12px",
@@ -76,37 +74,35 @@ export default function Sidebar() {
             </div>
             <div>
               <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "15px", margin: 0, letterSpacing: "0.02em" }}>Klinik Afina</h1>
-              <p style={{ color: "#a855f7", fontSize: "10px", margin: 0, letterSpacing: "0.08em", textTransform: "uppercase" }}>Sistem Manajemen</p>
+              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px", margin: 0, letterSpacing: "0.08em", textTransform: "uppercase" }}>Sistem Manajemen</p>
             </div>
           </div>
-          {/* Glowing line */}
           <div style={{ position: "absolute", bottom: 0, left: "20px", right: "20px", height: "1px", background: "linear-gradient(90deg, transparent, #a855f7, transparent)" }} />
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-          {navItems.map((item) => {
+          {navItems.map((item, i) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             const isSettings = item.href === "/pengaturan";
             return (
-              <Link key={item.label} href={item.href} className={`nav-link ${isActive ? "nav-link-active" : ""}`}
+              <Link key={item.label} href={item.href}
+                className={`nav-link ${isActive ? "nav-link-active" : ""}`}
                 style={{
                   display: "flex", alignItems: "center", gap: "12px",
                   padding: "11px 14px", borderRadius: "12px", fontSize: "13px",
-                  color: isActive ? "#f9a8d4" : "rgba(255,255,255,0.65)",
+                  color: isActive ? "#f9a8d4" : "rgba(255,255,255,0.75)",
                   textDecoration: "none", transition: "all 0.2s",
-                  border: "1px solid transparent", fontWeight: isActive ? 600 : 400,
-                  letterSpacing: "0.01em",
+                  fontWeight: isActive ? 600 : 400,
                 }}>
-                <span className={isActive ? "nav-icon-active" : isSettings ? "nav-icon-settings" : "nav-icon-default"}
-                  style={{ display: "flex", animationDelay: `${navItems.indexOf(item) * 0.3}s` }}>
-                  <Icon size={17} color={isActive ? "#ec4899" : "#a855f7"} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span
+                  className={isActive ? "nav-icon-active" : isSettings ? "nav-icon-settings" : "nav-icon-default"}
+                  style={{ display: "flex", animationDelay: `${i * 0.3}s` }}>
+                  <Icon size={17} color={isActive ? "#ec4899" : "#c084fc"} strokeWidth={isActive ? 2.5 : 1.8} />
                 </span>
                 <span>{item.label}</span>
-                {isActive && (
-                  <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#ec4899", boxShadow: "0 0 8px #ec4899" }} />
-                )}
+                {isActive && <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#ec4899", boxShadow: "0 0 8px #ec4899" }} />}
               </Link>
             );
           })}
@@ -128,7 +124,7 @@ export default function Sidebar() {
             </div>
             <div>
               <p style={{ color: "#fff", fontSize: "12px", fontWeight: 600, margin: 0 }}>Admin</p>
-              <p style={{ color: "#a855f7", fontSize: "10px", margin: 0 }}>Administrator</p>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", margin: 0 }}>Administrator</p>
             </div>
             <div style={{ marginLeft: "auto", width: "8px", height: "8px", borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
           </div>
