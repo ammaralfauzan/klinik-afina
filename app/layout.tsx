@@ -13,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="id">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{`
           [data-theme="dark"] {
             --bg-main: linear-gradient(135deg, #0d0d1a 0%, #130825 100%);
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             --border-color: rgba(168,85,247,0.15);
             --border-header: rgba(168,85,247,0.2);
             --text-primary: #f1e6ff;
-            --text-secondary: #6b7280;
+            --text-secondary: #9ca3af;
             --text-accent: #e9d5ff;
             --accent: #a855f7;
             --accent2: #ec4899;
@@ -48,6 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: system-ui, -apple-system, sans-serif; }
+          @media (max-width: 768px) {
+            .main-content { padding-bottom: 90px !important; }
+            .main-padding { padding: 16px !important; }
+            .hide-mobile { display: none !important; }
+          }
         `}</style>
       </head>
       <body>
@@ -63,31 +69,30 @@ function ThemedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-main)" }}>
       <Sidebar />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header style={{
-          background: "var(--bg-header)", padding: "14px 28px",
+          background: "var(--bg-header)", padding: "14px 20px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           borderBottom: "1px solid var(--border-header)",
           backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #ec4899, #a855f7)", boxShadow: "0 0 8px #a855f7" }} />
-            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
+            <h2 className="hide-mobile" style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
               Klinik Afina — Sistem Manajemen
             </h2>
+            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", display: "none" }} className="show-mobile">
+              Klinik Afina
+            </h2>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <ThemeToggle />
-            <div style={{
-              background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)",
-              borderRadius: "20px", padding: "6px 16px", fontSize: "12px",
-              color: "var(--accent)", fontWeight: 500,
-            }}>
+            <div className="hide-mobile" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
               ✦ Selamat datang, Admin
             </div>
           </div>
         </header>
-        <main style={{ flex: 1, padding: "28px" }}>{children}</main>
+        <main className="main-content main-padding" style={{ flex: 1, padding: "28px" }}>{children}</main>
       </div>
     </div>
   );

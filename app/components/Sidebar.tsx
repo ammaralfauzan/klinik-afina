@@ -45,60 +45,81 @@ export default function Sidebar() {
           border-color: rgba(236,72,153,0.4) !important;
           box-shadow: 0 0 12px rgba(236,72,153,0.15) !important;
         }
-      `}</style>
-      <aside style={{
-        width: "230px", minHeight: "100vh", position: "relative", overflow: "hidden",
-        background: sidebarBg, display: "flex", flexDirection: "column",
-        boxShadow: "4px 0 30px rgba(168,85,247,0.3), inset -1px 0 0 rgba(255,255,255,0.05)",
-        flexShrink: 0,
-      }}>
-        {/* Grid bg */}
-        <div style={{
-          position: "absolute", inset: 0, opacity: 0.07, pointerEvents: "none",
-          backgroundImage: "linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-        }} />
 
-        {/* Logo */}
+        /* Desktop sidebar */
+        .desktop-sidebar {
+          display: flex;
+          width: 230px;
+          min-height: 100vh;
+          flex-shrink: 0;
+        }
+        /* Mobile bottom nav */
+        .mobile-bottomnav { display: none; }
+
+        @media (max-width: 768px) {
+          .desktop-sidebar { display: none !important; }
+          .mobile-bottomnav {
+            display: flex;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, #0f0520, #1a0533);
+            border-top: 1px solid rgba(168,85,247,0.3);
+            padding: 8px 0 20px;
+            justify-content: space-around;
+            box-shadow: 0 -4px 20px rgba(107,33,168,0.3);
+          }
+          .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+            min-width: 56px;
+          }
+          .mobile-nav-item span {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+          }
+          .mobile-nav-active {
+            background: rgba(236,72,153,0.2) !important;
+          }
+        }
+      `}</style>
+
+      {/* DESKTOP SIDEBAR */}
+      <aside className="desktop-sidebar" style={{
+        position: "relative", overflow: "hidden",
+        background: sidebarBg, flexDirection: "column",
+        boxShadow: "4px 0 30px rgba(168,85,247,0.3)",
+      }}>
+        <div style={{ position: "absolute", inset: 0, opacity: 0.07, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+
         <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.15)", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{
-              width: "40px", height: "40px", borderRadius: "12px",
-              background: "linear-gradient(135deg, #ec4899, #a855f7)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 0 20px rgba(236,72,153,0.5)",
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-              </svg>
+            <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "linear-gradient(135deg, #ec4899, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(236,72,153,0.5)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             </div>
             <div>
-              <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "15px", margin: 0, letterSpacing: "0.02em" }}>Klinik Afina</h1>
-              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px", margin: 0, letterSpacing: "0.08em", textTransform: "uppercase" }}>Sistem Manajemen</p>
+              <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "15px", margin: 0 }}>Klinik Afina</h1>
+              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px", margin: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>Sistem Manajemen</p>
             </div>
           </div>
           <div style={{ position: "absolute", bottom: 0, left: "20px", right: "20px", height: "1px", background: "linear-gradient(90deg, transparent, #a855f7, transparent)" }} />
         </div>
 
-        {/* Nav */}
         <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {navItems.map((item, i) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             const isSettings = item.href === "/pengaturan";
             return (
-              <Link key={item.label} href={item.href}
-                className={`nav-link ${isActive ? "nav-link-active" : ""}`}
-                style={{
-                  display: "flex", alignItems: "center", gap: "12px",
-                  padding: "11px 14px", borderRadius: "12px", fontSize: "13px",
-                  color: isActive ? "#f9a8d4" : "rgba(255,255,255,0.75)",
-                  textDecoration: "none", transition: "all 0.2s",
-                  fontWeight: isActive ? 600 : 400,
-                }}>
-                <span
-                  className={isActive ? "nav-icon-active" : isSettings ? "nav-icon-settings" : "nav-icon-default"}
-                  style={{ display: "flex", animationDelay: `${i * 0.3}s` }}>
+              <Link key={item.label} href={item.href} className={`nav-link ${isActive ? "nav-link-active" : ""}`} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px", borderRadius: "12px", fontSize: "13px", color: isActive ? "#f9a8d4" : "rgba(255,255,255,0.75)", textDecoration: "none", transition: "all 0.2s", fontWeight: isActive ? 600 : 400 }}>
+                <span className={isActive ? "nav-icon-active" : isSettings ? "nav-icon-settings" : "nav-icon-default"} style={{ display: "flex", animationDelay: `${i * 0.3}s` }}>
                   <Icon size={17} color={isActive ? "#ec4899" : "#c084fc"} strokeWidth={isActive ? 2.5 : 1.8} />
                 </span>
                 <span>{item.label}</span>
@@ -108,19 +129,11 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
         <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
           <div style={{ position: "absolute", top: 0, left: "20px", right: "20px", height: "1px", background: "linear-gradient(90deg, transparent, #a855f7, transparent)" }} />
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{
-              width: "32px", height: "32px", borderRadius: "50%",
-              background: "linear-gradient(135deg, #ec4899, #a855f7)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 0 12px rgba(168,85,247,0.4)",
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
+            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #ec4899, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 12px rgba(168,85,247,0.4)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div>
               <p style={{ color: "#fff", fontSize: "12px", fontWeight: 600, margin: 0 }}>Admin</p>
@@ -130,6 +143,20 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="mobile-bottomnav">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <Link key={item.label} href={item.href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
+              <Icon size={22} color={isActive ? "#ec4899" : "rgba(255,255,255,0.5)"} strokeWidth={isActive ? 2.5 : 1.8} />
+              <span style={{ color: isActive ? "#ec4899" : "rgba(255,255,255,0.5)" }}>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </>
   );
 }
