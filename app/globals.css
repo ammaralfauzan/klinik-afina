@@ -35,3 +35,24 @@ body {
   .form-grid { grid-template-columns: 1fr !important; }
   .laporan-grid { grid-template-columns: 1fr !important; }
 }
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  /* Fix overflow konten */
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .laporan-grid { grid-template-columns: 1fr !important; }
+  .laporan-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Fix tabel - scroll horizontal */
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; }
+
+  /* Fix padding konten utama */
+  main { padding: 16px !important; }
+
+  /* Fix header title overflow */
+  header h2 { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+
+  /* Fix page title overflow */
+  h1 { font-size: 20px !important; }
+}

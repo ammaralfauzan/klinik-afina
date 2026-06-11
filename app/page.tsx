@@ -88,7 +88,12 @@ export default function Home() {
             <p style={{ fontSize: "14px" }}>Belum ada pasien hari ini</p>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="table-wrapper"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <div className="table-wrapper">
+  <table ...>
+  ...
+  </table>
+</div>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)", background: "var(--table-header-bg)" }}>
                 {["No", "Nama Pasien", "Keluhan", "Status"].map(h => (

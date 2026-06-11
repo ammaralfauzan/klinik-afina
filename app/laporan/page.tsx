@@ -18,30 +18,26 @@ export default function LaporanPage() {
   const diperiksa = pasienList.filter(p => p.status === "Sedang Diperiksa").length;
   const selesaiPct = total > 0 ? Math.round((selesai / total) * 100) : 0;
 
-  // Hitung keluhan terbanyak
   const keluhanMap: Record<string, number> = {};
-  pasienList.forEach(p => {
-    const k = p.keluhan || "Lainnya";
-    keluhanMap[k] = (keluhanMap[k] || 0) + 1;
-  });
+  pasienList.forEach(p => { const k = p.keluhan || "Lainnya"; keluhanMap[k] = (keluhanMap[k] || 0) + 1; });
   const topKeluhan = Object.entries(keluhanMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxKeluhan = topKeluhan[0]?.[1] || 1;
 
   const stats = [
     { label: "Total Pasien", value: total, icon: Users, color: "#a855f7", bg: "rgba(168,85,247,0.1)", border: "rgba(168,85,247,0.3)" },
-    { label: "Selesai Diperiksa", value: selesai, icon: CheckCircle2, color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)" },
-    { label: "Sedang Menunggu", value: menunggu, icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.3)" },
-    { label: "Sedang Diperiksa", value: diperiksa, icon: Activity, color: "#0ea5e9", bg: "rgba(14,165,233,0.1)", border: "rgba(14,165,233,0.3)" },
+    { label: "Selesai", value: selesai, icon: CheckCircle2, color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)" },
+    { label: "Menunggu", value: menunggu, icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.3)" },
+    { label: "Diperiksa", value: diperiksa, icon: Activity, color: "#0ea5e9", bg: "rgba(14,165,233,0.1)", border: "rgba(14,165,233,0.3)" },
   ];
 
   return (
     <div>
       <style>{`
-        @keyframes bar-grow { from { width: 0%; } to { width: var(--target-width); } }
+        @keyframes bar-grow { from { width: 0%; } to { width: var(--tw); } }
         .bar-fill { animation: bar-grow 1s ease-out forwards; }
       `}</style>
 
-      <div style={{ marginBottom: "28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ marginBottom: "28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Laporan</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Statistik dan laporan aktivitas klinik</p>
@@ -52,8 +48,7 @@ export default function LaporanPage() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+      <div className="laporan-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -68,17 +63,16 @@ export default function LaporanPage() {
         })}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* Progress selesai */}
+      <div className="laporan-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
             <BarChart3 size={18} color="#a855f7" />
             <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Status Pasien</h3>
           </div>
           {[
-            { label: "Selesai", value: selesai, total, color: "#10b981" },
-            { label: "Sedang Diperiksa", value: diperiksa, total, color: "#0ea5e9" },
-            { label: "Menunggu", value: menunggu, total, color: "#f59e0b" },
+            { label: "Selesai", value: selesai, color: "#10b981" },
+            { label: "Sedang Diperiksa", value: diperiksa, color: "#0ea5e9" },
+            { label: "Menunggu", value: menunggu, color: "#f59e0b" },
           ].map((item) => {
             const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
             return (
@@ -88,37 +82,28 @@ export default function LaporanPage() {
                   <span style={{ fontSize: "12px", fontWeight: 700, color: item.color }}>{item.value} ({pct}%)</span>
                 </div>
                 <div style={{ height: "8px", background: "var(--border-color)", borderRadius: "4px", overflow: "hidden" }}>
-                  <div className="bar-fill" style={{
-                    height: "100%", borderRadius: "4px", background: item.color,
-                    ["--target-width" as string]: `${pct}%`, width: `${pct}%`
-                  }} />
+                  <div className="bar-fill" style={{ height: "100%", borderRadius: "4px", background: item.color, ["--tw" as string]: `${pct}%`, width: `${pct}%` }} />
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Top keluhan */}
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
             <Activity size={18} color="#ec4899" />
             <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Keluhan Terbanyak</h3>
           </div>
           {topKeluhan.length === 0 ? (
-            <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>Belum ada data keluhan</p>
-          ) : topKeluhan.map(([keluhan, count], i) => (
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>Belum ada data</p>
+          ) : topKeluhan.map(([keluhan, count]) => (
             <div key={keluhan} style={{ marginBottom: "14px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>{keluhan}</span>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#ec4899" }}>{count}x</span>
               </div>
               <div style={{ height: "8px", background: "var(--border-color)", borderRadius: "4px", overflow: "hidden" }}>
-                <div className="bar-fill" style={{
-                  height: "100%", borderRadius: "4px",
-                  background: `linear-gradient(90deg, #ec4899, #a855f7)`,
-                  ["--target-width" as string]: `${Math.round((count / maxKeluhan) * 100)}%`,
-                  width: `${Math.round((count / maxKeluhan) * 100)}%`
-                }} />
+                <div className="bar-fill" style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #ec4899, #a855f7)", ["--tw" as string]: `${Math.round((count / maxKeluhan) * 100)}%`, width: `${Math.round((count / maxKeluhan) * 100)}%` }} />
               </div>
             </div>
           ))}
