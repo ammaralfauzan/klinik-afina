@@ -73,7 +73,7 @@ export default function PengaturanPage() {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
         {fields.map((f) => {
           const Icon = f.icon;
           return (

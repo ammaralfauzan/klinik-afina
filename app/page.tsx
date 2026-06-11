@@ -49,7 +49,7 @@ export default function Home() {
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Ringkasan aktivitas klinik hari ini</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", marginBottom: "24px" }}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
