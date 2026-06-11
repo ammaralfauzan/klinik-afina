@@ -72,8 +72,8 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ padding: "20px", borderBottom: "1px solid rgba(255,255,255,0.15)", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div className="logo-circle" style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid rgba(236,72,153,0.6)", background: "#fff" }}>
-              <Image src="/logo-afina.png" alt="Klinik Afina" width={44} height={44} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <div className="logo-circle" style={{ width: "52px", height: "52px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid rgba(236,72,153,0.6)", background: "#fff", padding: "2px" }}>
+              <Image src="/logo-afina.png" alt="Klinik Afina" width={52} height={52} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div>
               <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "14px", margin: 0 }}>Klinik & RB Afina</h1>
