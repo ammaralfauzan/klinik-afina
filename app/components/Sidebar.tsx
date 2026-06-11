@@ -1,68 +1,139 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard", icon: "📊", href: "/" },
-  { label: "Antrian", icon: "🔢", href: "/antrian" },
-  { label: "Pasien", icon: "👤", href: "/pasien" },
-  { label: "Laporan", icon: "📈", href: "/laporan" },
-  { label: "Pengaturan", icon: "⚙️", href: "/pengaturan" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { label: "Antrian", icon: ClipboardList, href: "/antrian" },
+  { label: "Pasien", icon: Users, href: "/pasien" },
+  { label: "Laporan", icon: BarChart3, href: "/laporan" },
+  { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ];
 
 export default function Sidebar() {
-  const [hovered, setHovered] = useState<string | null>(null);
+  const pathname = usePathname();
 
   return (
-    <aside style={{
-      width: "220px", minHeight: "100vh",
-      background: "linear-gradient(180deg, #6b21a8 0%, #9d174d 100%)",
-      display: "flex", flexDirection: "column",
-      boxShadow: "4px 0 20px rgba(107,33,168,0.15)"
-    }}>
-      <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{
-            width: "36px", height: "36px", borderRadius: "50%",
-            background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px"
-          }}>🏥</div>
-          <div>
-            <h1 style={{ color: "#fff", fontWeight: 700, fontSize: "15px", margin: 0 }}>Klinik Afina</h1>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", margin: 0 }}>Sistem Manajemen</p>
-          </div>
-        </div>
-      </div>
+    <>
+      <style>{`
+        @keyframes pulse-glow {
+          0%, 100% { filter: drop-shadow(0 0 3px rgba(236,72,153,0.4)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 8px rgba(236,72,153,0.9)); transform: scale(1.12); }
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes scanline {
+          0% { top: 0%; }
+          100% { top: 100%; }
+        }
+        .nav-icon-active { animation: pulse-glow 2s ease-in-out infinite; }
+        .nav-icon-settings { animation: spin-slow 6s linear infinite; }
+        .nav-icon-default { animation: float 3s ease-in-out infinite; }
+        .sidebar-glow {
+          box-shadow: 4px 0 30px rgba(168,85,247,0.3), inset -1px 0 0 rgba(255,255,255,0.05);
+        }
+        .nav-link-active {
+          background: linear-gradient(135deg, rgba(236,72,153,0.25), rgba(168,85,247,0.25)) !important;
+          border: 1px solid rgba(236,72,153,0.4) !important;
+          box-shadow: 0 0 12px rgba(236,72,153,0.15) !important;
+        }
+        .nav-link:hover {
+          background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(168,85,247,0.15)) !important;
+          border: 1px solid rgba(236,72,153,0.25) !important;
+        }
+      `}</style>
+      <aside className="sidebar-glow" style={{
+        width: "230px", minHeight: "100vh", position: "relative", overflow: "hidden",
+        background: "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)",
+        display: "flex", flexDirection: "column",
+      }}>
+        {/* Grid background */}
+        <div style={{
+          position: "absolute", inset: 0, opacity: 0.07,
+          backgroundImage: "linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)",
+          backgroundSize: "24px 24px", pointerEvents: "none"
+        }} />
 
-      <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-        {navItems.map((item) => (
-          <Link key={item.label} href={item.href}
-            onMouseEnter={() => setHovered(item.label)}
-            onMouseLeave={() => setHovered(null)}
-            style={{
-              display: "flex", alignItems: "center", gap: "10px",
-              padding: "10px 12px", borderRadius: "10px", fontSize: "13px",
-              color: "rgba(255,255,255,0.85)", textDecoration: "none",
-              background: hovered === item.label ? "rgba(255,255,255,0.15)" : "transparent",
-              transition: "background 0.2s",
+        {/* Logo */}
+        <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{
+              width: "40px", height: "40px", borderRadius: "12px",
+              background: "linear-gradient(135deg, #ec4899, #a855f7)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 0 20px rgba(236,72,153,0.5)",
             }}>
-            <span style={{ fontSize: "16px" }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div>
+              <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "15px", margin: 0, letterSpacing: "0.02em" }}>Klinik Afina</h1>
+              <p style={{ color: "#a855f7", fontSize: "10px", margin: 0, letterSpacing: "0.08em", textTransform: "uppercase" }}>Sistem Manajemen</p>
+            </div>
+          </div>
+          {/* Glowing line */}
+          <div style={{ position: "absolute", bottom: 0, left: "20px", right: "20px", height: "1px", background: "linear-gradient(90deg, transparent, #a855f7, transparent)" }} />
+        </div>
 
-      <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.15)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{
-            width: "28px", height: "28px", borderRadius: "50%",
-            background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px"
-          }}>👩‍⚕️</div>
-          <div>
-            <p style={{ color: "#fff", fontSize: "12px", fontWeight: 600, margin: 0 }}>Admin</p>
-            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", margin: 0 }}>Administrator</p>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            const isSettings = item.href === "/pengaturan";
+            return (
+              <Link key={item.label} href={item.href} className={`nav-link ${isActive ? "nav-link-active" : ""}`}
+                style={{
+                  display: "flex", alignItems: "center", gap: "12px",
+                  padding: "11px 14px", borderRadius: "12px", fontSize: "13px",
+                  color: isActive ? "#f9a8d4" : "rgba(255,255,255,0.65)",
+                  textDecoration: "none", transition: "all 0.2s",
+                  border: "1px solid transparent", fontWeight: isActive ? 600 : 400,
+                  letterSpacing: "0.01em",
+                }}>
+                <span className={isActive ? "nav-icon-active" : isSettings ? "nav-icon-settings" : "nav-icon-default"}
+                  style={{ display: "flex", animationDelay: `${navItems.indexOf(item) * 0.3}s` }}>
+                  <Icon size={17} color={isActive ? "#ec4899" : "#a855f7"} strokeWidth={isActive ? 2.5 : 1.8} />
+                </span>
+                <span>{item.label}</span>
+                {isActive && (
+                  <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#ec4899", boxShadow: "0 0 8px #ec4899" }} />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
+          <div style={{ position: "absolute", top: 0, left: "20px", right: "20px", height: "1px", background: "linear-gradient(90deg, transparent, #a855f7, transparent)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{
+              width: "32px", height: "32px", borderRadius: "50%",
+              background: "linear-gradient(135deg, #ec4899, #a855f7)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 0 12px rgba(168,85,247,0.4)",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{ color: "#fff", fontSize: "12px", fontWeight: 600, margin: 0 }}>Admin</p>
+              <p style={{ color: "#a855f7", fontSize: "10px", margin: 0 }}>Administrator</p>
+            </div>
+            <div style={{ marginLeft: "auto", width: "8px", height: "8px", borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
