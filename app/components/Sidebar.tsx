@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings } from "lucide-react";
+import Image from "next/image";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -32,80 +33,50 @@ export default function Sidebar() {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-3px); }
         }
+        @keyframes logo-spin {
+          0%, 100% { box-shadow: 0 0 12px rgba(236,72,153,0.4), 0 0 24px rgba(168,85,247,0.2); }
+          50% { box-shadow: 0 0 20px rgba(236,72,153,0.8), 0 0 40px rgba(168,85,247,0.4); }
+        }
         .nav-icon-active { animation: pulse-glow 2s ease-in-out infinite; }
         .nav-icon-settings { animation: spin-slow 6s linear infinite; }
         .nav-icon-default { animation: float 3s ease-in-out infinite; }
         .nav-link { border: 1px solid transparent; }
-        .nav-link:hover {
-          background: rgba(236,72,153,0.15) !important;
-          border-color: rgba(236,72,153,0.25) !important;
-        }
+        .nav-link:hover { background: rgba(236,72,153,0.15) !important; border-color: rgba(236,72,153,0.25) !important; }
         .nav-link-active {
           background: linear-gradient(135deg, rgba(236,72,153,0.25), rgba(168,85,247,0.25)) !important;
           border-color: rgba(236,72,153,0.4) !important;
           box-shadow: 0 0 12px rgba(236,72,153,0.15) !important;
         }
-
-        /* Desktop sidebar */
-        .desktop-sidebar {
-          display: flex;
-          width: 230px;
-          min-height: 100vh;
-          flex-shrink: 0;
-        }
-        /* Mobile bottom nav */
+        .logo-circle { animation: logo-spin 3s ease-in-out infinite; }
+        .desktop-sidebar { display: flex; width: 230px; min-height: 100vh; flex-shrink: 0; }
         .mobile-bottomnav { display: none; }
-
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .mobile-bottomnav {
-            display: flex;
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            z-index: 100;
+            display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
             background: linear-gradient(135deg, #0f0520, #1a0533);
             border-top: 1px solid rgba(168,85,247,0.3);
-            padding: 8px 0 20px;
-            justify-content: space-around;
+            padding: 8px 0 20px; justify-content: space-around;
             box-shadow: 0 -4px 20px rgba(107,33,168,0.3);
           }
-          .mobile-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 12px;
-            border-radius: 12px;
-            text-decoration: none;
-            transition: all 0.2s;
-            min-width: 56px;
-          }
-          .mobile-nav-item span {
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-          }
-          .mobile-nav-active {
-            background: rgba(236,72,153,0.2) !important;
-          }
+          .mobile-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 12px; text-decoration: none; transition: all 0.2s; min-width: 56px; }
+          .mobile-nav-item span { font-size: 10px; font-weight: 600; }
+          .mobile-nav-active { background: rgba(236,72,153,0.2) !important; }
         }
       `}</style>
 
       {/* DESKTOP SIDEBAR */}
-      <aside className="desktop-sidebar" style={{
-        position: "relative", overflow: "hidden",
-        background: sidebarBg, flexDirection: "column",
-        boxShadow: "4px 0 30px rgba(168,85,247,0.3)",
-      }}>
+      <aside className="desktop-sidebar" style={{ position: "relative", overflow: "hidden", background: sidebarBg, flexDirection: "column", boxShadow: "4px 0 30px rgba(168,85,247,0.3)" }}>
         <div style={{ position: "absolute", inset: 0, opacity: 0.07, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(168,85,247,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.5) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
 
-        <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.15)", position: "relative" }}>
+        {/* Logo */}
+        <div style={{ padding: "20px", borderBottom: "1px solid rgba(255,255,255,0.15)", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: "linear-gradient(135deg, #ec4899, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(236,72,153,0.5)" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <div className="logo-circle" style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid rgba(236,72,153,0.6)" }}>
+              <Image src="/logo-afina.png" alt="Klinik Afina" width={44} height={44} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div>
-              <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "15px", margin: 0 }}>Klinik Afina</h1>
+              <h1 style={{ color: "#fff", fontWeight: 800, fontSize: "14px", margin: 0 }}>Klinik & RB Afina</h1>
               <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px", margin: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>Sistem Manajemen</p>
             </div>
           </div>
