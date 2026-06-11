@@ -3,6 +3,7 @@ import "./globals.css";
 import Sidebar from "./components/Sidebar";
 import ThemeProvider from "./components/ThemeProvider";
 import ThemeToggle from "./components/ThemeToggle";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Klinik Afina",
@@ -49,10 +50,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: system-ui, -apple-system, sans-serif; }
+          .mobile-header { display: none; }
           @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            .laporan-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            .laporan-grid { grid-template-columns: 1fr !important; }
+            .form-grid { grid-template-columns: 1fr !important; }
+            .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .table-wrapper table { min-width: 480px; }
             .main-content { padding-bottom: 90px !important; }
-            .main-padding { padding: 16px !important; }
-            .hide-mobile { display: none !important; }
+            .desktop-header { display: none !important; }
+            .mobile-header {
+              display: flex !important;
+              align-items: center;
+              justify-content: space-between;
+              padding: 12px 16px;
+              background: var(--bg-header);
+              border-bottom: 1px solid var(--border-header);
+              position: sticky; top: 0; z-index: 10;
+            }
           }
         `}</style>
       </head>
@@ -70,29 +86,43 @@ function ThemedLayout({ children }: { children: React.ReactNode }) {
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-main)" }}>
       <Sidebar />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <header style={{
+
+        {/* DESKTOP HEADER */}
+        <header className="desktop-header" style={{
           background: "var(--bg-header)", padding: "14px 20px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           borderBottom: "1px solid var(--border-header)",
           backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #ec4899, #a855f7)", boxShadow: "0 0 8px #a855f7" }} />
-            <h2 className="hide-mobile" style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
+            <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #ec4899, #a855f7)" }} />
+            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
               Klinik Afina — Sistem Manajemen
-            </h2>
-            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", display: "none" }} className="show-mobile">
-              Klinik Afina
             </h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <ThemeToggle />
-            <div className="hide-mobile" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
+            <div style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
               ✦ Selamat datang, Admin
             </div>
           </div>
         </header>
-        <main className="main-content main-padding" style={{ flex: 1, padding: "28px" }}>{children}</main>
+
+        {/* MOBILE HEADER */}
+        <header className="mobile-header">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#fff", border: "1px solid rgba(168,85,247,0.3)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Image src="/logo-afina.png" alt="Logo" width={36} height={36} style={{ width: "88%", height: "88%", objectFit: "contain" }} />
+            </div>
+            <div>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--header-text)", margin: 0 }}>Klinik & RB Afina</p>
+              <p style={{ fontSize: "10px", color: "var(--text-secondary)", margin: 0 }}>Sistem Manajemen</p>
+            </div>
+          </div>
+          <ThemeToggle />
+        </header>
+
+        <main className="main-content" style={{ flex: 1, padding: "28px" }}>{children}</main>
       </div>
     </div>
   );
