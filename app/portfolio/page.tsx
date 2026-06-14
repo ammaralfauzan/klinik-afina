@@ -1,4 +1,5 @@
-import Gallery from "../components/Gallery";
+import { portfolioItems } from "@/lib/data";
+import GalleryGrid from "../components/GalleryGrid";
 
 export const metadata = {
   title: "Portofolio — Fenoma Wedding Photography",
@@ -9,16 +10,16 @@ export default function PortfolioPage() {
   return (
     <>
       {/* Page Header */}
-      <div
-        style={{
-          paddingTop: "120px",
-          paddingBottom: "60px",
-          background: "#F5F0E8",
-          textAlign: "center",
-          padding: "120px 24px 60px",
-        }}
-      >
-        <p style={{ fontSize: "12px", letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A96E", marginBottom: "16px" }}>
+      <div style={{ padding: "120px 24px 60px", background: "#F5F0E8", textAlign: "center" }}>
+        <p
+          style={{
+            fontSize: "12px",
+            letterSpacing: "0.3em",
+            textTransform: "uppercase",
+            color: "#C9A96E",
+            marginBottom: "16px",
+          }}
+        >
           Galeri
         </p>
         <h1
@@ -37,9 +38,9 @@ export default function PortfolioPage() {
         </p>
       </div>
 
-      {/* Gallery */}
+      {/* Gallery with filters */}
       <section style={{ padding: "60px 24px 80px", maxWidth: "1200px", margin: "0 auto" }}>
-        <Gallery showFilter={true} />
+        <GalleryGrid items={portfolioItems} showFilters={true} />
       </section>
     </>
   );
