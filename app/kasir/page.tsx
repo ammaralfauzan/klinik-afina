@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle, X } from "lucide-react";
 
 type Pasien = {
   nomor_antrian: number; nama: string; keluhan: string;
@@ -33,6 +33,7 @@ export default function KasirPage() {
   const [toast, setToast] = useState<string | null>(null);
   // Local edits: map nomor_antrian → {biaya, status_bayar}
   const [edits, setEdits] = useState<Map<number, { biaya: string; status_bayar: string }>>(new Map());
+  const [notaModal, setNotaModal] = useState<{ p: Pasien; biaya: number } | null>(null);
 
   const today = getTodayRange();
 
@@ -96,6 +97,21 @@ export default function KasirPage() {
     fetchPasien();
   }
 
+  function openNota(p: Pasien) {
+    const edit = getEdit(p);
+    const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
+    setNotaModal({ p, biaya });
+  }
+
+  function sendWABayar(p: Pasien) {
+    if (!p.no_hp) { setToast("Nomor HP pasien tidak tersedia"); setTimeout(() => setToast(null), 3000); return; }
+    const edit = getEdit(p);
+    const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
+    const phone = p.no_hp.replace(/\D/g, "").replace(/^0/, "62");
+    const msg = `Yth. ${p.nama},\n\nTerima kasih telah berkunjung ke Klinik & RB Afina.\n\nRincian pembayaran:\n• Keluhan: ${p.keluhan}\n• Total Biaya: ${fmtRupiah(biaya)}\n• Status: LUNAS ✓\n• Tanggal: ${new Date().toLocaleDateString("id-ID")}\n\nSemoga lekas sembuh 🙏`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
   async function handleCopy() {
     await navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {});
     setCopied(true); setTimeout(() => setCopied(false), 2000);
@@ -125,7 +141,62 @@ export default function KasirPage() {
         .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 680px; }
+        .nota-overlay { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.18s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .nota-card { background: #fff; border-radius: 20px; padding: 32px; max-width: 340px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: slideUp 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media print {
+          body > * { display: none !important; }
+          .nota-overlay { display: block !important; position: static !important; background: none !important; padding: 0 !important; animation: none !important; }
+          .nota-card { box-shadow: none !important; border: 1px solid #ddd; border-radius: 0; animation: none !important; max-width: 100%; }
+          .nota-no-print { display: none !important; }
+        }
       `}</style>
+
+      {/* Nota Modal */}
+      {notaModal && (
+        <div className="nota-overlay" onClick={e => { if (e.target === e.currentTarget) setNotaModal(null); }}>
+          <div className="nota-card">
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#6C5CE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+                <span style={{ color: "#fff", fontSize: "20px", fontWeight: 900 }}>A</span>
+              </div>
+              <p style={{ fontSize: "14px", fontWeight: 800, color: "#6C5CE7", margin: 0 }}>Klinik & RB Afina</p>
+              <p style={{ fontSize: "11px", color: "#888", margin: "2px 0 0" }}>Bukti Pembayaran</p>
+            </div>
+            <div style={{ borderTop: "1px dashed #ddd", borderBottom: "1px dashed #ddd", padding: "16px 0", margin: "0 0 16px" }}>
+              {[
+                { label: "No. Antrian", val: padNo(notaModal.p.nomor_antrian) },
+                { label: "Nama Pasien", val: notaModal.p.nama },
+                { label: "Keluhan", val: notaModal.p.keluhan },
+                { label: "Tanggal", val: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) },
+                { label: "Waktu", val: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) },
+              ].map(({ label, val }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "12px", color: "#888", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600, textAlign: "right" }}>{val}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#f0fdf4", borderRadius: "12px", padding: "14px", textAlign: "center", marginBottom: "20px" }}>
+              <p style={{ fontSize: "11px", color: "#059669", fontWeight: 700, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Pembayaran</p>
+              <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: 0 }}>{fmtRupiah(notaModal.biaya)}</p>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "20px", padding: "3px 10px", fontSize: "11px", fontWeight: 700, marginTop: "6px" }}>
+                <CheckCircle2 size={11} /> LUNAS
+              </span>
+            </div>
+            <p style={{ textAlign: "center", fontSize: "11px", color: "#aaa", margin: "0 0 20px" }}>Terima kasih atas kepercayaan Anda.</p>
+            <div className="nota-no-print" style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => window.print()} style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}>
+                <Printer size={14} /> Cetak Nota
+              </button>
+              <button onClick={() => setNotaModal(null)} style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "12px", padding: "12px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
@@ -243,11 +314,21 @@ export default function KasirPage() {
                     <td style={{ padding: "14px 18px" }}>
                       {colsOk ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                          {isLunas ? (
+                          {isLunas ? (<>
                             <span style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", background: "rgba(16,185,129,0.1)", color: "#059669", fontSize: "12px", fontWeight: 700, border: "1px solid rgba(16,185,129,0.25)" }}>
                               <CheckCircle2 size={13} /> Lunas
                             </span>
-                          ) : (
+                            <button className="k-btn" onClick={() => openNota(p)} title="Cetak nota"
+                              style={{ padding: "7px 9px", borderRadius: "8px", background: "rgba(108,92,231,0.1)", border: "1px solid rgba(108,92,231,0.2)", color: "var(--accent)", display: "flex", alignItems: "center" }}>
+                              <Printer size={13} />
+                            </button>
+                            {p.no_hp && (
+                              <button className="k-btn" onClick={() => sendWABayar(p)} title="Kirim WA bukti bayar"
+                                style={{ padding: "7px 9px", borderRadius: "8px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#16a34a", display: "flex", alignItems: "center" }}>
+                                <MessageCircle size={13} />
+                              </button>
+                            )}
+                          </>) : (
                             <button className="k-btn" onClick={() => quickLunas(p)}
                               style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", borderRadius: "8px", background: "rgba(108,92,231,0.1)", color: "var(--accent)", border: "1px solid rgba(108,92,231,0.2)", fontSize: "12px", fontWeight: 600 }}>
                               <Banknote size={13} /> Tandai Lunas

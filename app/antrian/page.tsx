@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
-import { PhoneCall, CheckCircle2, Clock, Users, Tv2, MessageCircle, UserX } from "lucide-react";
+import { PhoneCall, CheckCircle2, Clock, Users, Tv2, MessageCircle, UserX, Search } from "lucide-react";
 import { useAudio } from "../components/AudioNotif";
 import Toast from "../components/Toast";
 
@@ -37,7 +37,14 @@ function buildWALink(p: Pasien, action: "panggil" | "selesai"): string {
 export default function AntrianPage() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
   const [toast, setToast] = useState({ visible: false, message: "" });
+  const [searchQ, setSearchQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Semua");
   const { playDing, playDingDing, playDingDown } = useAudio();
+
+  const displayed = useMemo(() => pasienList
+    .filter(p => !searchQ || p.nama.toLowerCase().includes(searchQ.toLowerCase()))
+    .filter(p => statusFilter === "Semua" || p.status === statusFilter),
+    [pasienList, searchQ, statusFilter]);
 
   const fetchPasien = useCallback(async () => {
     const { start, end } = getTodayRange();
@@ -123,6 +130,14 @@ export default function AntrianPage() {
         .table-row:hover { background: var(--table-hover) !important; }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 620px; }
+        .filter-btn { padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .filter-btn:hover { background: var(--input-bg); color: var(--text-primary); }
+        .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .search-wrap { position: relative; }
+        .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+        .search-input { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 9px 12px 9px 34px; font-size: 13px; color: var(--text-primary); outline: none; width: 200px; font-family: inherit; transition: border 0.2s, width 0.2s; }
+        .search-input:focus { border-color: var(--accent); width: 240px; }
+        .search-input::placeholder { color: var(--text-secondary); }
       `}</style>
 
       {/* Header */}
@@ -140,6 +155,10 @@ export default function AntrianPage() {
           }}>
             <Tv2 size={14} /> Buka Display TV
           </a>
+          <div className="search-wrap">
+            <Search size={14} color="var(--text-secondary)" className="search-icon" />
+            <input className="search-input" placeholder="Cari nama..." value={searchQ} onChange={e => setSearchQ(e.target.value)} />
+          </div>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "9px 14px", display: "flex", gap: "14px" }}>
             {[
               { label: "Menunggu",  val: menunggu,   color: "#d97706" },
@@ -153,6 +172,15 @@ export default function AntrianPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Status filter tabs */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
+        {["Semua", "Menunggu", "Sedang Diperiksa", "Selesai", "Tidak Hadir"].map(f => (
+          <button key={f} className={`filter-btn${statusFilter === f ? " active" : ""}`} onClick={() => setStatusFilter(f)}>
+            {f} {f !== "Semua" && <span style={{ opacity: 0.75 }}>({pasienList.filter(p => p.status === f).length})</span>}
+          </button>
+        ))}
       </div>
 
       {/* Table */}
@@ -175,7 +203,13 @@ export default function AntrianPage() {
                     <p style={{ margin: "4px 0 0", fontSize: "12px" }}>Pasien yang mendaftar hari ini akan muncul di sini</p>
                   </td>
                 </tr>
-              ) : pasienList.map((p) => (
+              ) : displayed.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }}>
+                    Tidak ada pasien untuk filter ini
+                  </td>
+                </tr>
+              ) : displayed.map((p) => (
                 <tr key={p.nomor_antrian} className="table-row" style={{
                   borderBottom: "1px solid var(--border-color)", transition: "background 0.15s",
                   opacity: p.status === "Tidak Hadir" ? 0.55 : 1,

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope } from "lucide-react";
 
@@ -50,6 +50,10 @@ export default function RekamMedisPage() {
   const [tableOk, setTableOk] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [tab, setTab] = useState<"hari-ini" | "historis">("hari-ini");
+  const [historis, setHistoris] = useState<RM[]>([]);
+  const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
+  const [searchH, setSearchH] = useState("");
 
   const today = getTodayRange();
 
@@ -74,6 +78,26 @@ export default function RekamMedisPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (tab !== "historis" || !tableOk) return;
+    supabase.from("rekam_medis").select("*").order("visit_date", { ascending: false }).then(({ data }) => {
+      if (data) setHistoris(data as RM[]);
+    });
+  }, [tab, tableOk]);
+
+  const historisGrouped = useMemo(() => {
+    const map = new Map<string, { nama: string; visits: RM[] }>();
+    historis.forEach(r => {
+      const key = r.pasien_nama.toLowerCase().trim();
+      const cur = map.get(key) || { nama: r.pasien_nama, visits: [] };
+      cur.visits.push(r);
+      map.set(key, cur);
+    });
+    return Array.from(map.values())
+      .filter(g => !searchH || g.nama.toLowerCase().includes(searchH.toLowerCase()))
+      .sort((a, b) => new Date(b.visits[0].visit_date).getTime() - new Date(a.visits[0].visit_date).getTime());
+  }, [historis, searchH]);
 
   function rmKey(nomor: number, nama: string) { return `${nomor}__${nama.toLowerCase().trim()}`; }
 
@@ -135,6 +159,9 @@ export default function RekamMedisPage() {
     <div>
       <style>{`
         .rm-row:hover { background: var(--table-hover) !important; }
+        .tab-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; background: transparent; color: var(--text-secondary); }
+        .tab-btn:hover { background: var(--input-bg); color: var(--text-primary); }
+        .tab-btn.active { background: var(--accent); color: #fff; }
         .rm-btn { transition: all 0.18s; cursor: pointer; }
         .rm-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
         .modal-overlay { position: fixed; inset: 0; z-index: 8000; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.18s ease; }
@@ -163,6 +190,12 @@ export default function RekamMedisPage() {
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0", textTransform: "capitalize" }}>{todayStr}</p>
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "4px", marginBottom: "20px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "4px", width: "fit-content", boxShadow: "var(--shadow)" }}>
+        <button className={`tab-btn${tab === "hari-ini" ? " active" : ""}`} onClick={() => setTab("hari-ini")}>Hari Ini</button>
+        <button className={`tab-btn${tab === "historis" ? " active" : ""}`} onClick={() => setTab("historis")}>Historis</button>
+      </div>
+
       {/* Migration banner */}
       {tableOk === false && (
         <div style={{ background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.35)", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
@@ -183,7 +216,80 @@ export default function RekamMedisPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Historis tab content */}
+      {tab === "historis" && (
+        <div>
+          <div style={{ marginBottom: "16px" }}>
+            <input
+              style={{ background: "var(--input-bg)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", color: "var(--text-primary)", outline: "none", width: "100%", maxWidth: "320px", fontFamily: "inherit", boxSizing: "border-box" as const }}
+              placeholder="Cari nama pasien..."
+              value={searchH}
+              onChange={e => setSearchH(e.target.value)}
+            />
+          </div>
+          {historisGrouped.length === 0 ? (
+            <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", padding: "56px", textAlign: "center", color: "var(--text-secondary)" }}>
+              <FileText size={36} style={{ margin: "0 auto 12px", display: "block", opacity: 0.35 }} />
+              <p style={{ margin: 0, fontWeight: 600 }}>{searchH ? "Tidak ditemukan" : "Belum ada rekam medis tersimpan"}</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {historisGrouped.map(g => (
+                <div key={g.nama} style={{ background: "var(--bg-card)", borderRadius: "14px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
+                  <div
+                    onClick={() => setExpandedPatient(expandedPatient === g.nama ? null : g.nama)}
+                    style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--input-bg)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(108,92,231,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "16px", fontWeight: 800, color: "var(--accent)" }}>
+                      {g.nama.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{g.nama}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                        {g.visits.length} kunjungan · Terakhir: {new Date(g.visits[0].visit_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: "18px", color: "var(--text-secondary)", transition: "transform 0.2s", transform: expandedPatient === g.nama ? "rotate(90deg)" : "none" }}>›</span>
+                  </div>
+                  {expandedPatient === g.nama && (
+                    <div style={{ borderTop: "1px solid var(--border-color)" }}>
+                      {g.visits.map((v, i) => (
+                        <div key={v.id} style={{ padding: "16px 20px", borderBottom: i < g.visits.length - 1 ? "1px solid var(--border-color)" : "none" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", padding: "3px 10px", borderRadius: "20px" }}>
+                              {new Date(v.visit_date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{v.pasien_keluhan}</span>
+                            <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-secondary)" }}>{v.dokter}</span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            {[
+                              { label: "Diagnosa", val: v.diagnosa },
+                              { label: "Tindakan", val: v.tindakan },
+                              { label: "Obat", val: v.obat },
+                              { label: "Catatan", val: v.catatan },
+                            ].filter(r => r.val).map(({ label, val }) => (
+                              <div key={label}>
+                                <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>{label}</p>
+                                <p style={{ fontSize: "12px", color: "var(--text-primary)", margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>{val}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Table — hari ini */}
+      {tab === "hari-ini" && (
       <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
         <div className="table-wrapper">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -242,6 +348,7 @@ export default function RekamMedisPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Modal */}
       {modal && (

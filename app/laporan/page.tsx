@@ -14,6 +14,7 @@ type Pasien = {
   nama: string; keluhan: string; status: string;
   nomor_antrian: number; created_at: string;
   jenis_kelamin?: string; no_hp?: string;
+  biaya?: number; status_bayar?: string;
 };
 
 type Periode = "hari" | "minggu" | "bulan" | "tahun";
@@ -189,8 +190,24 @@ export default function LaporanPage() {
 
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
-  function handleExportPDF() {
-    window.print();
+  const totalPendapatan = filtered.filter(p => p.status_bayar === "Lunas").reduce((s, p) => s + (p.biaya || 0), 0);
+  const jumlahLunas = filtered.filter(p => p.status_bayar === "Lunas").length;
+
+  function handleExportPDF() { window.print(); }
+
+  function handleExportCSV() {
+    const headers = ["Nomor Antrian","Nama","Keluhan","Status","Jenis Kelamin","Tanggal Daftar","Biaya","Status Bayar"];
+    const rows = filtered.map(p => [
+      p.nomor_antrian, p.nama, p.keluhan, p.status, p.jenis_kelamin || "",
+      new Date(p.created_at).toLocaleString("id-ID"),
+      p.biaya || 0, p.status_bayar || "",
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `laporan-afina-${PERIODE_LABELS[periode].replace(/ /g,"-").toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
   }
 
   return (
@@ -243,21 +260,20 @@ export default function LaporanPage() {
             <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Laporan</h1>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Statistik dan analitik aktivitas klinik</p>
           </div>
-          <button
-            onClick={handleExportPDF}
-            style={{
-              display: "flex", alignItems: "center", gap: "7px",
-              background: "var(--accent)", color: "#fff", border: "none",
-              borderRadius: "10px", padding: "10px 18px", fontSize: "13px",
-              fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              transition: "opacity 0.18s",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
-            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-          >
-            <FileDown size={15} />
-            Export PDF
-          </button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={handleExportCSV}
+              style={{ display: "flex", alignItems: "center", gap: "7px", background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.18s" }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.8")} onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              <FileDown size={15} /> Export CSV
+            </button>
+            <button onClick={handleExportPDF}
+              style={{ display: "flex", alignItems: "center", gap: "7px", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.18s" }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")} onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              <FileDown size={15} /> Export PDF
+            </button>
+          </div>
         </div>
 
         {/* PERIODE FILTER */}
@@ -302,6 +318,22 @@ export default function LaporanPage() {
                 );
               })}
             </div>
+
+            {/* REVENUE ROW */}
+            {totalPendapatan > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "24px" }}>
+                {[
+                  { label: "Total Pendapatan", val: "Rp " + totalPendapatan.toLocaleString("id-ID"), color: "#059669", bg: "rgba(16,185,129,0.1)" },
+                  { label: "Pasien Lunas", val: jumlahLunas, color: "#0284c7", bg: "rgba(14,165,233,0.1)" },
+                  { label: "Rata-rata per Pasien", val: jumlahLunas > 0 ? "Rp " + Math.round(totalPendapatan / jumlahLunas).toLocaleString("id-ID") : "—", color: "#d97706", bg: "rgba(245,158,11,0.1)" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: "14px", padding: "18px 20px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", borderLeft: `4px solid ${s.color}` }}>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: s.color, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>💰 {s.label}</p>
+                    <p style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{s.val}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* GRAFIK KUNJUNGAN */}
             <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", marginBottom: "20px" }}>
