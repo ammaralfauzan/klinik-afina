@@ -1,25 +1,36 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { Users, Clock, Stethoscope, CheckCircle } from "lucide-react";
+import { usePatientNotification } from "./hooks/usePatientNotification";
+import Toast from "./components/Toast";
 
 type Pasien = { nama: string; keluhan: string; status: string; nomor_antrian: number; };
 
 export default function Home() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
+  const [toast, setToast] = useState({ visible: false, message: "" });
+  const { playBeep } = usePatientNotification();
+
+  const fetchPasien = useCallback(async () => {
+    const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
+    if (data) setPasienList(data);
+  }, []);
 
   useEffect(() => {
     fetchPasien();
     const channel = supabase.channel("realtime-pasien")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, fetchPasien)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          playBeep();
+          const newPatient = payload.new as Pasien;
+          setToast({ visible: true, message: `Pasien baru: ${newPatient.nama}` });
+        }
+        fetchPasien();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  async function fetchPasien() {
-    const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
-    if (data) setPasienList(data);
-  }
+  }, [fetchPasien, playBeep]);
 
   const stats = [
     { label: "Pasien Hari Ini", value: pasienList.length, icon: Users, color: "#7B61FF", border: "rgba(123,97,255,0.15)", bg: "rgba(123,97,255,0.1)" },
@@ -30,6 +41,8 @@ export default function Home() {
 
   return (
     <div>
+      <Toast message={toast.message} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+
       <style>{`
         @keyframes icon-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
         .stat-icon { animation: icon-pulse 2.5s ease-in-out infinite; }

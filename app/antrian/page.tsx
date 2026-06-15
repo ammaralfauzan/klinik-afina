@@ -1,25 +1,36 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { PhoneCall, CheckCircle2, Clock, Users } from "lucide-react";
+import { usePatientNotification } from "../hooks/usePatientNotification";
+import Toast from "../components/Toast";
 
 type Pasien = { nama: string; keluhan: string; status: string; nomor_antrian: number; };
 
 export default function AntrianPage() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
+  const [toast, setToast] = useState({ visible: false, message: "" });
+  const { playBeep } = usePatientNotification();
+
+  const fetchPasien = useCallback(async () => {
+    const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
+    if (data) setPasienList(data);
+  }, []);
 
   useEffect(() => {
     fetchPasien();
     const channel = supabase.channel("realtime-antrian")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, fetchPasien)
+      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          playBeep();
+          const newPatient = payload.new as Pasien;
+          setToast({ visible: true, message: `Pasien baru: ${newPatient.nama}` });
+        }
+        fetchPasien();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  async function fetchPasien() {
-    const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
-    if (data) setPasienList(data);
-  }
+  }, [fetchPasien, playBeep]);
 
   async function updateStatus(nomor: number, status: string) {
     await supabase.from("pasien").update({ status }).eq("nomor_antrian", nomor);
@@ -28,6 +39,8 @@ export default function AntrianPage() {
 
   return (
     <div>
+      <Toast message={toast.message} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+
       <style>{`
         .action-btn { transition: all 0.2s; cursor: pointer; }
         .action-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }

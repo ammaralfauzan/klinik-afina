@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut } from "lucide-react";
 import Image from "next/image";
 
 const navItems = [
@@ -16,6 +16,13 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { dark } = useTheme();
+  const router = useRouter();
+
+  function handleLogout() {
+    document.cookie = "isLoggedIn=; path=/; max-age=0";
+    localStorage.removeItem("isLoggedIn");
+    router.push("/login");
+  }
 
   const sidebarBg = dark
     ? "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)"
@@ -103,6 +110,21 @@ export default function Sidebar() {
             </div>
             <div style={{ marginLeft: "auto", width: "7px", height: "7px", borderRadius: "50%", background: "#4ade80" }} />
           </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: "100%", marginTop: "10px",
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+              color: "rgba(255,255,255,0.7)", borderRadius: "8px", padding: "8px 12px",
+              fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center",
+              justifyContent: "center", gap: "6px", fontFamily: "inherit", transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+          >
+            <LogOut size={13} />
+            Keluar
+          </button>
         </div>
       </aside>
 
