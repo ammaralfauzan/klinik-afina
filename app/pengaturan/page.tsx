@@ -35,9 +35,9 @@ export default function PengaturanPage() {
       <style>{`
         .form-input { width: 100%; background: var(--input-bg, rgba(168,85,247,0.05)); border: 1px solid var(--border-color); border-radius: 10px; padding: 11px 14px 11px 40px; font-size: 13px; color: var(--text-primary); outline: none; transition: all 0.2s; box-sizing: border-box; }
         .form-input::placeholder { color: var(--text-secondary); }
-        .form-input:focus { border-color: rgba(168,85,247,0.6); box-shadow: 0 0 0 3px rgba(168,85,247,0.1); }
+        .form-input:focus { border-color: rgba(168,85,247,0.6); }
         .save-btn { transition: all 0.2s; }
-        .save-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(168,85,247,0.35); }
+        .save-btn:hover:not(:disabled) { transform: translateY(-1px); }
         .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(240deg); cursor: pointer; }
@@ -76,7 +76,7 @@ export default function PengaturanPage() {
       </div>
 
       <div style={{ marginTop: "28px", display: "flex", justifyContent: "flex-end" }}>
-        <button className="save-btn" onClick={handleSave} disabled={loading} style={{ background: "linear-gradient(135deg, #a855f7, #ec4899)", border: "none", borderRadius: "12px", padding: "13px 28px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 16px rgba(168,85,247,0.25)" }}>
+        <button className="save-btn" onClick={handleSave} disabled={loading} style={{ background: "linear-gradient(135deg, #a855f7, #ec4899)", border: "none", borderRadius: "12px", padding: "13px 28px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
           <Save size={16} />
           {loading ? "Menyimpan..." : "Simpan Pengaturan"}
         </button>

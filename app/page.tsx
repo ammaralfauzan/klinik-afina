@@ -47,7 +47,7 @@ export default function Home() {
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} style={{ background: s.bg, borderRadius: "16px", padding: "22px", border: `1px solid ${s.border}`, boxShadow: `0 4px 20px ${s.border}` }}>
+            <div key={s.label} style={{ background: s.bg, borderRadius: "16px", padding: "22px", border: `1px solid ${s.border}` }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <span className="stat-icon" style={{ display: "flex", animationDelay: `${i * 0.4}s` }}>
                   <Icon size={22} color={s.color} strokeWidth={1.8} />
@@ -64,7 +64,7 @@ export default function Home() {
       <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
           <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Antrian Pasien</h3>
-          <span style={{ fontSize: "11px", background: "linear-gradient(135deg, #ec4899, #a855f7)", color: "#fff", padding: "4px 14px", borderRadius: "20px", fontWeight: 700, boxShadow: "0 0 12px rgba(236,72,153,0.3)" }}>{pasienList.length} Pasien</span>
+          <span style={{ fontSize: "11px", background: "linear-gradient(135deg, #ec4899, #a855f7)", color: "#fff", padding: "4px 14px", borderRadius: "20px", fontWeight: 700 }}>{pasienList.length} Pasien</span>
         </div>
         {pasienList.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px", color: "var(--text-secondary)" }}>

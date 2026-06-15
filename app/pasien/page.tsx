@@ -27,9 +27,9 @@ export default function PasienPage() {
           outline: none; transition: all 0.2s; box-sizing: border-box;
         }
         .form-input::placeholder { color: var(--text-secondary); }
-        .form-input:focus { border-color: rgba(168,85,247,0.6); box-shadow: 0 0 0 3px rgba(168,85,247,0.1); }
+        .form-input:focus { border-color: rgba(168,85,247,0.6); }
         .submit-btn { transition: all 0.2s; }
-        .submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(236,72,153,0.35); }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-1px); }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
 
@@ -54,7 +54,7 @@ export default function PasienPage() {
             <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Keluhan</label>
             <textarea className="form-input" placeholder="Deskripsikan keluhan pasien" rows={4} value={form.keluhan} onChange={(e) => setForm({ ...form, keluhan: e.target.value })} style={{ resize: "none" }} />
           </div>
-          <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan} style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxShadow: "0 4px 16px rgba(236,72,153,0.25)" }}>
+          <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan} style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
             <UserPlus size={16} />
             {loading ? "Mendaftarkan..." : "Daftarkan Pasien"}
           </button>
