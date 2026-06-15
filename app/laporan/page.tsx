@@ -124,7 +124,7 @@ function keluhanTerbanyak(list: Pasien[]): string {
 }
 
 // Custom tooltip for recharts
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{

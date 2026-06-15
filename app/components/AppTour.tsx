@@ -160,7 +160,7 @@ export function useTour() { return useContext(TourContext); }
 function TourTooltip({
   step, rect, total, onNext, onPrev, onEnd,
 }: {
-  step: TourStep; rect: DOMRect | null; total: number; stepIndex: number;
+  step: TourStep; rect: DOMRect | null; total: number;
   onNext: () => void; onPrev: () => void; onEnd: () => void;
 }) {
   const isFirst = STEPS[0].id === step.id;
@@ -404,6 +404,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.25); }
               50%       { box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 0 3px #9B8AFF, 0 0 0 10px rgba(123,97,255,0.15); }
             }
+            @keyframes tourSpin {
+              from { transform: rotate(0deg); }
+              to   { transform: rotate(360deg); }
+            }
           `}</style>
 
           {/* Dark backdrop (no-op click to dismiss) */}
@@ -435,7 +439,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           {!isCenter && !targetRect && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ color: "#fff", fontSize: "14px", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "tourPulse 0.7s linear infinite", display: "inline-block" }} />
+                <span style={{ width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "tourSpin 0.7s linear infinite", display: "inline-block" }} />
                 Membuka halaman...
               </div>
             </div>
@@ -446,7 +450,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
             step={currentStep}
             rect={(!isCenter && targetRect) ? targetRect : null}
             total={STEPS.length}
-            stepIndex={step}
+
             onNext={goNext}
             onPrev={goPrev}
             onEnd={endTour}
