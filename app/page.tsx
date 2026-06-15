@@ -112,11 +112,32 @@ export default function Home() {
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 480px; }
         .recharts-tooltip-wrapper { font-size: 12px !important; }
-        @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3, 1fr) !important; } }
-        @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
-        @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr !important; } }
-        @media (max-width: 900px) { .dash-main-grid { grid-template-columns: 1fr !important; } }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 14px;
+          margin-bottom: 24px;
+        }
+        .dash-main-grid {
+          display: grid;
+          grid-template-columns: 1fr 360px;
+          gap: 20px;
+          margin-bottom: 20px;
+          min-width: 0;
+        }
         .dash-chart-wrap { width: 100%; min-width: 0; overflow: hidden; }
+
+        @media (max-width: 900px) {
+          .stats-grid { grid-template-columns: repeat(3, 1fr); }
+          .dash-main-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 400px) {
+          .stats-grid { grid-template-columns: 1fr; }
+        }
       `}</style>
 
       <div style={{ marginBottom: "28px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
@@ -133,7 +154,7 @@ export default function Home() {
         )}
       </div>
 
-      <div data-tour="dashboard-stats" className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "14px", marginBottom: "24px" }}>
+      <div data-tour="dashboard-stats" className="stats-grid">
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -152,7 +173,7 @@ export default function Home() {
         })}
       </div>
 
-      <div className="dash-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", marginBottom: "20px" }}>
+      <div className="dash-main-grid">
         {/* Antrian table */}
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>

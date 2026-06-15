@@ -40,11 +40,10 @@ body {
   }
 
   /* Grid breakpoints */
-  .stats-grid        { grid-template-columns: repeat(2, 1fr) !important; }
-  .laporan-stats-grid{ grid-template-columns: repeat(2, 1fr) !important; }
-  .laporan-grid      { grid-template-columns: 1fr !important; }
-  .form-grid         { grid-template-columns: 1fr !important; }
-  .kasir-stats-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-grid         { grid-template-columns: 1fr !important; }
+  .form-grid            { grid-template-columns: 1fr !important; }
+  .kasir-stats-grid     { grid-template-columns: repeat(2, 1fr) !important; }
   .laporan-revenue-grid { grid-template-columns: 1fr !important; }
 
   /* Tables: scroll horizontally, not overflow */

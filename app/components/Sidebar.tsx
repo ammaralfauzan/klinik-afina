@@ -65,23 +65,34 @@ export default function Sidebar() {
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .mobile-bottomnav {
-            display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+            display: flex;
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
             background: #3D3478;
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding: 6px 0 env(safe-area-inset-bottom, 16px);
-            overflow-x: auto; overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; -ms-overflow-style: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+            align-items: center;
+            justify-content: space-between;
+            gap: 2px;
           }
-          .mobile-bottomnav::-webkit-scrollbar { display: none; }
           .mobile-nav-item {
-            display: flex; flex-direction: column; align-items: center;
-            gap: 3px; padding: 6px 10px; border-radius: 10px;
-            text-decoration: none; transition: background 0.18s;
-            flex-shrink: 0; min-width: 52px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 4px;
+            flex: 1;
+            padding: 7px 4px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: background 0.18s;
+            min-width: 0;
           }
-          .mobile-nav-item span { font-size: 9px; font-weight: 600; white-space: nowrap; }
-          .mobile-nav-active { background: rgba(255,255,255,0.14); }
+          .mobile-nav-item span {
+            font-size: 9px; font-weight: 600;
+            color: rgba(255,255,255,0.45);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 100%;
+            display: block;
+          }
+          .mobile-nav-active { background: rgba(255,255,255,0.13); }
+          .mobile-nav-active span { color: #fff; }
         }
       `}</style>
 
