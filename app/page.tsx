@@ -7,13 +7,25 @@ import Toast from "./components/Toast";
 
 type Pasien = { nama: string; keluhan: string; status: string; nomor_antrian: number; };
 
+function getTodayRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function padNo(n: number) { return String(n).padStart(3, "0"); }
+
 export default function Home() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const { playDing } = useAudio();
 
   const fetchPasien = useCallback(async () => {
-    const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
+    const { start, end } = getTodayRange();
+    const { data } = await supabase.from("pasien").select("*")
+      .gte("created_at", start).lte("created_at", end)
+      .order("nomor_antrian", { ascending: true });
     if (data) setPasienList(data);
   }, []);
 
@@ -99,7 +111,7 @@ export default function Home() {
               <tbody>
                 {pasienList.map((p) => (
                   <tr key={p.nomor_antrian} className="table-row" style={{ borderBottom: "1px solid var(--border-color)", transition: "background 0.15s" }}>
-                    <td style={{ padding: "14px 16px", fontWeight: 700, color: "var(--accent)" }}>{p.nomor_antrian}</td>
+                    <td style={{ padding: "14px 16px", fontWeight: 700, color: "var(--accent)" }}>{padNo(p.nomor_antrian)}</td>
                     <td style={{ padding: "14px 16px", fontWeight: 600, color: "var(--text-primary)" }}>{p.nama}</td>
                     <td style={{ padding: "14px 16px", color: "var(--text-secondary)" }}>{p.keluhan}</td>
                     <td style={{ padding: "14px 16px" }}>

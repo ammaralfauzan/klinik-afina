@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
-import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown } from "lucide-react";
+import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer } from "lucide-react";
 
 const KELUHAN_OPTIONS = [
   "Demam",
@@ -57,6 +57,15 @@ ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;
 
 -- Atau tambah policy yang mengizinkan semua operasi:
 -- CREATE POLICY "allow_all" ON pasien FOR ALL USING (true) WITH CHECK (true);`;
+
+function getTodayRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function padNo(n: number) { return String(n).padStart(3, "0"); }
 
 function formatHP(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 13);
@@ -137,6 +146,7 @@ export default function PasienPage() {
   const [copiedRLS, setCopiedRLS] = useState(false);
   const [jenisOpen, setJenisOpen] = useState(false);
   const jenisRef = useRef<HTMLDivElement>(null);
+  const [slip, setSlip] = useState<{ nomor: number; nama: string; keluhan: string; waktu: string } | null>(null);
 
   // ── Schema check on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -229,10 +239,13 @@ export default function PasienPage() {
 
     setLoading(true);
     try {
-      // 1. Get next antrian number
+      // 1. Get next antrian number for today only (resets daily)
+      const { start: todayStart, end: todayEnd } = getTodayRange();
       const { data: lastData, error: seqError } = await supabase
         .from("pasien")
         .select("nomor_antrian")
+        .gte("created_at", todayStart)
+        .lte("created_at", todayEnd)
         .order("nomor_antrian", { ascending: false })
         .limit(1);
 
@@ -285,11 +298,15 @@ export default function PasienPage() {
           showToast("error", `Gagal menyimpan: ${error.message}`);
         }
       } else {
-        showToast("success", `Pasien ${form.nama.trim()} berhasil didaftarkan! (Antrian #${nomorBaru})`);
+        setSlip({
+          nomor: nomorBaru,
+          nama: form.nama.trim(),
+          keluhan: keluhanFinal,
+          waktu: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        });
         setForm(INITIAL_FORM);
         setErrors({});
         setTouched({});
-        // Re-check schema to confirm it's ok
         setSchemaStatus("ok");
       }
     } catch (err: any) {
@@ -395,7 +412,88 @@ export default function PasienPage() {
           background: rgba(108,92,231,0.08); color: var(--accent); font-weight: 700;
         }
         .jenis-option + .jenis-option { border-top: 1px solid var(--border-color); }
+
+        /* Slip modal */
+        .slip-overlay {
+          position: fixed; inset: 0; z-index: 9000;
+          background: rgba(0,0,0,0.55); display: flex;
+          align-items: center; justify-content: center; padding: 20px;
+          animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .slip-card {
+          background: #fff; border-radius: 20px; padding: 36px;
+          max-width: 380px; width: 100%;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+          animation: slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* Print: only show slip content, hide everything else */
+        @media print {
+          body > * { display: none !important; }
+          .slip-overlay { display: block !important; position: static !important; background: none !important; padding: 0 !important; animation: none !important; }
+          .slip-card { box-shadow: none !important; border: 1px solid #ddd; border-radius: 0; animation: none !important; max-width: 100%; }
+          .slip-no-print { display: none !important; }
+        }
       `}</style>
+
+      {/* ── SLIP MODAL ── */}
+      {slip && (
+        <div className="slip-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSlip(null); }}>
+          <div className="slip-card">
+            {/* Klinik header */}
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#6C5CE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <span style={{ color: "#fff", fontSize: "22px", fontWeight: 900 }}>A</span>
+              </div>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: "#6C5CE7", margin: 0, letterSpacing: "0.06em", textTransform: "uppercase" }}>Klinik & RB Afina</p>
+              <p style={{ fontSize: "11px", color: "#888", margin: "2px 0 0" }}>Slip Antrian Pasien</p>
+            </div>
+
+            {/* Nomor besar */}
+            <div style={{ background: "#6C5CE7", borderRadius: "16px", padding: "20px", textAlign: "center", marginBottom: "20px" }}>
+              <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.75)", fontWeight: 700, letterSpacing: "0.1em", margin: "0 0 6px", textTransform: "uppercase" }}>Nomor Antrian</p>
+              <p style={{ fontSize: "56px", fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-2px" }}>{padNo(slip.nomor)}</p>
+            </div>
+
+            {/* Detail */}
+            <div style={{ borderTop: "1px dashed #e0e0e0", paddingTop: "16px", marginBottom: "24px" }}>
+              {[
+                { label: "Nama Pasien", val: slip.nama },
+                { label: "Keluhan", val: slip.keluhan },
+                { label: "Waktu Daftar", val: slip.waktu },
+                { label: "Tanggal", val: new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) },
+              ].map(({ label, val }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "10px" }}>
+                  <span style={{ fontSize: "12px", color: "#888", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600, textAlign: "right" }}>{val}</span>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ textAlign: "center", fontSize: "11px", color: "#aaa", marginBottom: "20px" }}>
+              Harap tunggu hingga nomor Anda dipanggil.<br />Terima kasih atas kepercayaan Anda.
+            </p>
+
+            {/* Buttons */}
+            <div className="slip-no-print" style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => window.print()}
+                style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}
+              >
+                <Printer size={15} /> Cetak Slip
+              </button>
+              <button
+                onClick={() => setSlip(null)}
+                style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "12px", padding: "12px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── TOAST ── */}
       {toast && (
