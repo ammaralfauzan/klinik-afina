@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List, FileText, CreditCard } from "lucide-react";
 import Image from "next/image";
 
 type NavItem = {
@@ -22,6 +22,8 @@ const navItems: NavItem[] = [
       { label: "Daftar Pasien", href: "/pasien/daftar", icon: List },
     ],
   },
+  { label: "Rekam Medis", icon: FileText, href: "/rekam-medis" },
+  { label: "Kasir", icon: CreditCard, href: "/kasir" },
   { label: "Laporan", icon: BarChart3, href: "/laporan" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ];

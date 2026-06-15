@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer } from "lucide-react";
@@ -147,6 +147,10 @@ export default function PasienPage() {
   const [jenisOpen, setJenisOpen] = useState(false);
   const jenisRef = useRef<HTMLDivElement>(null);
   const [slip, setSlip] = useState<{ nomor: number; nama: string; keluhan: string; waktu: string } | null>(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState<Array<{ nama: string; tanggal_lahir?: string; jenis_kelamin?: string; no_hp?: string; alamat?: string }>>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // ── Schema check on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -174,13 +178,40 @@ export default function PasienPage() {
   // Close jenis kelamin dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (jenisRef.current && !jenisRef.current.contains(e.target as Node)) {
-        setJenisOpen(false);
-      }
+      if (jenisRef.current && !jenisRef.current.contains(e.target as Node)) setJenisOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Debounced patient search
+  useEffect(() => {
+    if (!searchQ.trim()) { setSearchRes([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase.from("pasien")
+        .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat")
+        .or(`nama.ilike.%${searchQ.trim()}%,no_hp.ilike.%${searchQ.trim()}%`)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (data) {
+        const seen = new Set<string>();
+        const unique = data.filter(r => {
+          const key = r.nama.toLowerCase().trim();
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        }).slice(0, 6);
+        setSearchRes(unique);
+        setSearchOpen(unique.length > 0);
+      }
+    }, 280);
+    return () => clearTimeout(t);
+  }, [searchQ]);
+
+  function fillFromPatient(p: typeof searchRes[0]) {
+    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "" });
+    setErrors({}); setTouched({}); setSearchQ(""); setSearchRes([]); setSearchOpen(false);
+  }
 
   const showToast = useCallback((type: "success" | "error", msg: string) => {
     setToast({ type, msg });
@@ -627,6 +658,45 @@ export default function PasienPage() {
           Database terhubung dan siap digunakan
         </div>
       )}
+
+      {/* ── CARI PASIEN LAMA ── */}
+      <div style={{ maxWidth: "700px", marginBottom: "20px" }}>
+        <div style={{ background: "var(--bg-card)", borderRadius: "14px", padding: "18px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Pasien Kembali?</p>
+          <div ref={searchRef} style={{ position: "relative" }}>
+            <input
+              className="form-input"
+              placeholder="Cari nama atau no. HP pasien lama untuk pre-isi formulir..."
+              value={searchQ}
+              onChange={e => setSearchQ(e.target.value)}
+              onFocus={() => searchRes.length > 0 && setSearchOpen(true)}
+            />
+            {searchOpen && searchRes.length > 0 && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 200, background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", overflow: "hidden", animation: "dropIn 0.15s ease" }}>
+                {searchRes.map((p, i) => (
+                  <div key={i} onClick={() => fillFromPatient(p)}
+                    style={{ padding: "11px 14px", cursor: "pointer", borderBottom: i < searchRes.length - 1 ? "1px solid var(--border-color)" : "none", display: "flex", alignItems: "center", gap: "12px", transition: "background 0.12s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--input-bg)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "rgba(108,92,231,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "14px" }}>
+                      {p.jenis_kelamin === "Perempuan" ? "👩" : "👨"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{p.nama}</p>
+                      <p style={{ margin: 0, fontSize: "11px", color: "var(--text-secondary)" }}>{p.no_hp || "—"} {p.tanggal_lahir ? `• Lahir ${new Date(p.tanggal_lahir).toLocaleDateString("id-ID")}` : ""}</p>
+                    </div>
+                    <span style={{ fontSize: "11px", color: "var(--accent)", fontWeight: 600, flexShrink: 0 }}>Pilih →</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {searchQ && searchRes.length === 0 && (
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "8px 0 0" }}>Tidak ditemukan. Isi formulir baru di bawah.</p>
+          )}
+        </div>
+      </div>
 
       {/* ── FORM ── */}
       <div style={{ maxWidth: "700px" }}>
