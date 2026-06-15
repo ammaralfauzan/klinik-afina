@@ -19,7 +19,7 @@ export default function Sidebar() {
 
   const sidebarBg = dark
     ? "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)"
-    : "linear-gradient(180deg, #3b0764 0%, #6b21a8 50%, #4a1272 100%)";
+    : "linear-gradient(180deg, #2E2466 0%, #3D3178 100%)";
 
   return (
     <>
@@ -40,7 +40,7 @@ export default function Sidebar() {
           .desktop-sidebar { display: none !important; }
           .mobile-bottomnav {
             display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-            background: #0f0520;
+            background: #2E2466;
             border-top: 1px solid rgba(255,255,255,0.1);
             padding: 8px 0 20px; justify-content: space-around;
           }

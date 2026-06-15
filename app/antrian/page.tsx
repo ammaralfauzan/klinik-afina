@@ -41,9 +41,9 @@ export default function AntrianPage() {
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Manajemen Antrian</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Kelola antrian pasien secara realtime</p>
         </div>
-        <div style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "12px", padding: "10px 18px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <Users size={15} color="#a855f7" />
-          <span style={{ fontSize: "13px", color: "#a855f7", fontWeight: 600 }}>{pasienList.length} Pasien</span>
+        <div style={{ background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)", borderRadius: "12px", padding: "10px 18px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <Users size={15} color="#7B61FF" />
+          <span style={{ fontSize: "13px", color: "#7B61FF", fontWeight: 600 }}>{pasienList.length} Pasien</span>
         </div>
       </div>
 

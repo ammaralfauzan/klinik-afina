@@ -37,7 +37,7 @@ export default function PengaturanPage() {
         .form-input::placeholder { color: var(--text-secondary); }
         .form-input:focus { border-color: rgba(168,85,247,0.6); }
         .save-btn { transition: all 0.2s; }
-        .save-btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .save-btn:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.92; }
         .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(240deg); cursor: pointer; }
@@ -48,7 +48,7 @@ export default function PengaturanPage() {
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Pengaturan</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Konfigurasi profil dan operasional klinik</p>
         </div>
-        <Settings size={28} color="#a855f7" strokeWidth={1.5} style={{ animation: "spin-slow 10s linear infinite" }} />
+        <Settings size={28} color="#7B61FF" strokeWidth={1.5} style={{ animation: "spin-slow 10s linear infinite" }} />
       </div>
 
       {saved && (
@@ -66,7 +66,7 @@ export default function PengaturanPage() {
               <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>{f.label}</label>
               <div style={{ position: "relative" }}>
                 <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-                  <Icon size={15} color="#a855f7" strokeWidth={1.8} />
+                  <Icon size={15} color="#7B61FF" strokeWidth={1.8} />
                 </div>
                 <input className="form-input" type={f.type} placeholder={f.placeholder} value={(form as any)[f.key] || ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
               </div>
@@ -76,7 +76,7 @@ export default function PengaturanPage() {
       </div>
 
       <div style={{ marginTop: "28px", display: "flex", justifyContent: "flex-end" }}>
-        <button className="save-btn" onClick={handleSave} disabled={loading} style={{ background: "linear-gradient(135deg, #a855f7, #ec4899)", border: "none", borderRadius: "12px", padding: "13px 28px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
+        <button className="save-btn" onClick={handleSave} disabled={loading} style={{ background: "linear-gradient(135deg, #7B61FF, #9B8AFF)", border: "none", borderRadius: "12px", padding: "13px 28px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
           <Save size={16} />
           {loading ? "Menyimpan..." : "Simpan Pengaturan"}
         </button>

@@ -54,7 +54,7 @@ export default function PasienPage() {
             <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Keluhan</label>
             <textarea className="form-input" placeholder="Deskripsikan keluhan pasien" rows={4} value={form.keluhan} onChange={(e) => setForm({ ...form, keluhan: e.target.value })} style={{ resize: "none" }} />
           </div>
-          <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan} style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan} style={{ background: "linear-gradient(135deg, #7B61FF, #9B8AFF)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
             <UserPlus size={16} />
             {loading ? "Mendaftarkan..." : "Daftarkan Pasien"}
           </button>

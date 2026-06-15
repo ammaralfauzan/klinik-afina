@@ -24,10 +24,10 @@ export default function LaporanPage() {
   const maxKeluhan = topKeluhan[0]?.[1] || 1;
 
   const stats = [
-    { label: "Total Pasien", value: total, icon: Users, color: "#a855f7", bg: "rgba(168,85,247,0.1)", border: "rgba(168,85,247,0.3)" },
-    { label: "Selesai", value: selesai, icon: CheckCircle2, color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)" },
-    { label: "Menunggu", value: menunggu, icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.3)" },
-    { label: "Diperiksa", value: diperiksa, icon: Activity, color: "#0ea5e9", bg: "rgba(14,165,233,0.1)", border: "rgba(14,165,233,0.3)" },
+    { label: "Total Pasien", value: total, icon: Users, color: "#7B61FF", bg: "rgba(123,97,255,0.1)", border: "rgba(123,97,255,0.15)" },
+    { label: "Selesai", value: selesai, icon: CheckCircle2, color: "#10b981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.15)" },
+    { label: "Menunggu", value: menunggu, icon: Clock, color: "#F5A623", bg: "rgba(245,166,35,0.1)", border: "rgba(245,166,35,0.15)" },
+    { label: "Diperiksa", value: diperiksa, icon: Activity, color: "#0ea5e9", bg: "rgba(14,165,233,0.1)", border: "rgba(14,165,233,0.15)" },
   ];
 
   return (
@@ -42,9 +42,9 @@ export default function LaporanPage() {
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Laporan</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Statistik dan laporan aktivitas klinik</p>
         </div>
-        <div style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "12px", padding: "10px 18px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <TrendingUp size={15} color="#a855f7" />
-          <span style={{ fontSize: "13px", color: "#a855f7", fontWeight: 600 }}>Tingkat selesai: {selesaiPct}%</span>
+        <div style={{ background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)", borderRadius: "12px", padding: "10px 18px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <TrendingUp size={15} color="#7B61FF" />
+          <span style={{ fontSize: "13px", color: "#7B61FF", fontWeight: 600 }}>Tingkat selesai: {selesaiPct}%</span>
         </div>
       </div>
 
@@ -52,12 +52,14 @@ export default function LaporanPage() {
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} style={{ background: s.bg, borderRadius: "16px", padding: "20px", border: `1px solid ${s.border}` }}>
+            <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "20px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                <Icon size={18} color={s.color} strokeWidth={1.8} />
-                <span style={{ fontSize: "11px", fontWeight: 700, color: s.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon size={16} color={s.color} strokeWidth={1.8} />
+                </div>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
               </div>
-              <p style={{ fontSize: "32px", fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
+              <p style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{s.value}</p>
             </div>
           );
         })}
@@ -66,7 +68,7 @@ export default function LaporanPage() {
       <div className="laporan-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-            <BarChart3 size={18} color="#a855f7" />
+            <BarChart3 size={18} color="#7B61FF" />
             <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Status Pasien</h3>
           </div>
           {[
@@ -91,7 +93,7 @@ export default function LaporanPage() {
 
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-            <Activity size={18} color="#ec4899" />
+            <Activity size={18} color="#F5A623" />
             <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Keluhan Terbanyak</h3>
           </div>
           {topKeluhan.length === 0 ? (
@@ -100,10 +102,10 @@ export default function LaporanPage() {
             <div key={keluhan} style={{ marginBottom: "14px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>{keluhan}</span>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#ec4899" }}>{count}x</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#F5A623" }}>{count}x</span>
               </div>
               <div style={{ height: "8px", background: "var(--border-color)", borderRadius: "4px", overflow: "hidden" }}>
-                <div className="bar-fill" style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #ec4899, #a855f7)", ["--tw" as string]: `${Math.round((count / maxKeluhan) * 100)}%`, width: `${Math.round((count / maxKeluhan) * 100)}%` }} />
+                <div className="bar-fill" style={{ height: "100%", borderRadius: "4px", background: "linear-gradient(90deg, #7B61FF, #A594FF)", ["--tw" as string]: `${Math.round((count / maxKeluhan) * 100)}%`, width: `${Math.round((count / maxKeluhan) * 100)}%` }} />
               </div>
             </div>
           ))}

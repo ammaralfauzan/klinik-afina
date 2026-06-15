@@ -22,10 +22,10 @@ export default function Home() {
   }
 
   const stats = [
-    { label: "Pasien Hari Ini", value: pasienList.length, icon: Users, color: "#ec4899", border: "rgba(236,72,153,0.3)", bg: "rgba(236,72,153,0.08)" },
-    { label: "Antrian Menunggu", value: pasienList.filter(p => p.status === "Menunggu").length, icon: Clock, color: "#a855f7", border: "rgba(168,85,247,0.3)", bg: "rgba(168,85,247,0.08)" },
-    { label: "Sedang Diperiksa", value: pasienList.filter(p => p.status === "Sedang Diperiksa").length, icon: Stethoscope, color: "#0ea5e9", border: "rgba(14,165,233,0.3)", bg: "rgba(14,165,233,0.08)" },
-    { label: "Selesai", value: pasienList.filter(p => p.status === "Selesai").length, icon: CheckCircle, color: "#10b981", border: "rgba(16,185,129,0.3)", bg: "rgba(16,185,129,0.08)" },
+    { label: "Pasien Hari Ini", value: pasienList.length, icon: Users, color: "#7B61FF", border: "rgba(123,97,255,0.15)", bg: "rgba(123,97,255,0.1)" },
+    { label: "Antrian Menunggu", value: pasienList.filter(p => p.status === "Menunggu").length, icon: Clock, color: "#F5A623", border: "rgba(245,166,35,0.15)", bg: "rgba(245,166,35,0.1)" },
+    { label: "Sedang Diperiksa", value: pasienList.filter(p => p.status === "Sedang Diperiksa").length, icon: Stethoscope, color: "#0ea5e9", border: "rgba(14,165,233,0.15)", bg: "rgba(14,165,233,0.1)" },
+    { label: "Selesai", value: pasienList.filter(p => p.status === "Selesai").length, icon: CheckCircle, color: "#10b981", border: "rgba(16,185,129,0.15)", bg: "rgba(16,185,129,0.1)" },
   ];
 
   return (
@@ -47,15 +47,17 @@ export default function Home() {
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} style={{ background: s.bg, borderRadius: "16px", padding: "22px", border: `1px solid ${s.border}` }}>
+            <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "22px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                <span className="stat-icon" style={{ display: "flex", animationDelay: `${i * 0.4}s` }}>
-                  <Icon size={22} color={s.color} strokeWidth={1.8} />
-                </span>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: s.color, letterSpacing: "0.08em", textTransform: "uppercase" }}>Hari ini</span>
+                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span className="stat-icon" style={{ display: "flex", animationDelay: `${i * 0.4}s` }}>
+                    <Icon size={20} color={s.color} strokeWidth={1.8} />
+                  </span>
+                </div>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "0.07em", textTransform: "uppercase" }}>Hari ini</span>
               </div>
-              <p style={{ fontSize: "36px", fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.value}</p>
-              <p style={{ fontSize: "12px", color: "var(--text-primary)", margin: "8px 0 0", fontWeight: 600, opacity: 0.8 }}>{s.label}</p>
+              <p style={{ fontSize: "34px", fontWeight: 800, color: "var(--text-primary)", margin: 0, lineHeight: 1 }}>{s.value}</p>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "8px 0 0", fontWeight: 500 }}>{s.label}</p>
             </div>
           );
         })}
@@ -64,7 +66,7 @@ export default function Home() {
       <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
           <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Antrian Pasien</h3>
-          <span style={{ fontSize: "11px", background: "linear-gradient(135deg, #ec4899, #a855f7)", color: "#fff", padding: "4px 14px", borderRadius: "20px", fontWeight: 700 }}>{pasienList.length} Pasien</span>
+          <span style={{ fontSize: "11px", background: "rgba(123,97,255,0.1)", color: "#7B61FF", padding: "4px 14px", borderRadius: "20px", fontWeight: 700, border: "1px solid rgba(123,97,255,0.2)" }}>{pasienList.length} Pasien</span>
         </div>
         {pasienList.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px", color: "var(--text-secondary)" }}>

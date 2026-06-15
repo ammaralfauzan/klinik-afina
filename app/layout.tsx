@@ -16,41 +16,45 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
         <style>{`
           [data-theme="dark"] {
             --bg-main: linear-gradient(135deg, #0d0d1a 0%, #130825 100%);
             --bg-header: rgba(15,5,32,0.95);
-            --bg-card: rgba(255,255,255,0.03);
-            --border-color: rgba(168,85,247,0.15);
-            --border-header: rgba(168,85,247,0.2);
+            --bg-card: rgba(255,255,255,0.04);
+            --border-color: rgba(123,97,255,0.15);
+            --border-header: rgba(123,97,255,0.2);
             --text-primary: #f1e6ff;
             --text-secondary: #9ca3af;
             --text-accent: #e9d5ff;
-            --accent: #a855f7;
-            --accent2: #ec4899;
+            --accent: #7B61FF;
+            --accent2: #F5A623;
             --header-text: #e2d4f0;
-            --table-hover: rgba(168,85,247,0.05);
-            --table-header-bg: rgba(168,85,247,0.06);
-            --shadow: 0 4px 24px rgba(0,0,0,0.3);
+            --table-hover: rgba(123,97,255,0.05);
+            --table-header-bg: rgba(123,97,255,0.06);
+            --shadow: 0 2px 12px rgba(0,0,0,0.3);
           }
           [data-theme="light"] {
-            --bg-main: linear-gradient(135deg, #f8f4ff 0%, #fdf2f8 100%);
-            --bg-header: rgba(255,255,255,0.98);
-            --bg-card: #ffffff;
-            --border-color: rgba(168,85,247,0.2);
-            --border-header: rgba(168,85,247,0.15);
-            --text-primary: #1e1b2e;
-            --text-secondary: #6b7280;
-            --text-accent: #4a1272;
-            --accent: #7c3aed;
-            --accent2: #db2777;
-            --header-text: #3b0764;
-            --table-hover: rgba(168,85,247,0.04);
-            --table-header-bg: rgba(168,85,247,0.05);
-            --shadow: 0 4px 24px rgba(107,33,168,0.1);
+            --bg-main: #F0EEFF;
+            --bg-header: #FFFFFF;
+            --bg-card: #FFFFFF;
+            --border-color: rgba(0,0,0,0.06);
+            --border-header: rgba(0,0,0,0.07);
+            --text-primary: #1A1A2E;
+            --text-secondary: #8B8FA8;
+            --text-accent: #3D3178;
+            --accent: #7B61FF;
+            --accent2: #F5A623;
+            --header-text: #1A1A2E;
+            --table-hover: rgba(123,97,255,0.04);
+            --table-header-bg: rgba(123,97,255,0.03);
+            --shadow: 0 2px 12px rgba(0,0,0,0.07);
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: system-ui, -apple-system, sans-serif; }
+          body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+          h1, h2, h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
           .mobile-header { display: none; }
           @media (max-width: 768px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -96,14 +100,14 @@ function ThemedLayout({ children }: { children: React.ReactNode }) {
           backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #ec4899, #a855f7)" }} />
+            <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #F5A623, #7B61FF)" }} />
             <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
               Klinik Afina — Sistem Manajemen
             </h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <ThemeToggle />
-            <div style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
+            <div style={{ background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
               ✦ Selamat datang, Admin
             </div>
           </div>
