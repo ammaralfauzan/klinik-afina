@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
-import { Users, ArrowLeft, Search, X, Clock, CheckCircle2, Stethoscope } from "lucide-react";
+import { Users, ArrowLeft, Search, X, Clock, CheckCircle2, Stethoscope, Download } from "lucide-react";
 
 type PasienRecord = {
   nomor_antrian: number;
@@ -86,6 +86,25 @@ export default function DaftarPasienPage() {
     );
   }, [uniquePatients, search]);
 
+  function handleExportCSV() {
+    const headers = ["Nama", "Jenis Kelamin", "Usia", "No HP", "Alamat", "Total Kunjungan", "Kunjungan Terakhir"];
+    const rows = uniquePatients.map(p => [
+      p.nama,
+      p.jenis_kelamin,
+      hitungUsia(p.tanggal_lahir),
+      p.no_hp,
+      p.alamat,
+      p.totalKunjungan,
+      formatDate(p.lastVisit),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `daftar-pasien-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
   function hitungUsia(tanggal_lahir?: string): string {
     if (!tanggal_lahir) return "-";
     const today = new Date();
@@ -158,11 +177,19 @@ export default function DaftarPasienPage() {
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Daftar Pasien</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Data pasien unik yang terdaftar di klinik</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "10px 16px" }}>
-          <Users size={15} color="var(--accent)" />
-          <span style={{ fontSize: "13px", color: "var(--accent)", fontWeight: 600 }}>{uniquePatients.length} Pasien Unik</span>
-          <span style={{ color: "var(--border-color)", fontSize: "16px" }}>·</span>
-          <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>{records.length} Total Kunjungan</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "10px 16px" }}>
+            <Users size={15} color="var(--accent)" />
+            <span style={{ fontSize: "13px", color: "var(--accent)", fontWeight: 600 }}>{uniquePatients.length} Pasien Unik</span>
+            <span style={{ color: "var(--border-color)", fontSize: "16px" }}>·</span>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>{records.length} Total Kunjungan</span>
+          </div>
+          <button
+            onClick={handleExportCSV}
+            style={{ display: "flex", alignItems: "center", gap: "7px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "10px 16px", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", cursor: "pointer" }}
+          >
+            <Download size={14} color="var(--accent)" /> Export CSV
+          </button>
         </div>
       </div>
 

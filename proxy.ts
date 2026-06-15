@@ -5,8 +5,8 @@ export function proxy(request: NextRequest) {
   const isLoggedIn = request.cookies.get("isLoggedIn")?.value;
   const { pathname } = request.nextUrl;
 
-  const publicRoutes = ["/login", "/display"];
-  if (!isLoggedIn && !publicRoutes.includes(pathname)) {
+  const publicRoutes = ["/login", "/display", "/daftar-online"];
+  if (!isLoggedIn && !publicRoutes.some(r => pathname === r || pathname.startsWith(r + "/"))) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

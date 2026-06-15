@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Settings, Save, CheckCircle2, Clock, Phone, MapPin, User, Building2, Banknote } from "lucide-react";
+import { Settings, Save, CheckCircle2, Clock, Phone, MapPin, User, Building2, Banknote, Calendar } from "lucide-react";
 
 type Pengaturan = {
   id: number; nama_klinik: string; alamat: string; telepon: string;
@@ -16,6 +16,10 @@ const DEFAULTS: Pengaturan = {
 };
 
 const LS_KEY = "klinik_pengaturan";
+const JADWAL_KEY = "klinik_jadwal";
+
+const HARI_KEYS = ["senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu"];
+const HARI_LABELS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
 function loadLocal(): Partial<Pengaturan> {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
@@ -33,6 +37,7 @@ export default function PengaturanPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [useDB, setUseDB] = useState<boolean | null>(null);
+  const [jadwal, setJadwal] = useState<Record<string, string>>({});
 
   // Try to load from Supabase; fall back to localStorage silently
   useEffect(() => {
@@ -45,11 +50,16 @@ export default function PengaturanPage() {
         setForm(f => ({ ...f, ...loadLocal() }));
       }
     });
+    try {
+      const saved = JSON.parse(localStorage.getItem(JADWAL_KEY) || "{}");
+      setJadwal(saved);
+    } catch { /* noop */ }
   }, []);
 
   async function handleSave() {
     setLoading(true); setStatus("idle");
     saveLocal(form); // always save locally
+    try { localStorage.setItem(JADWAL_KEY, JSON.stringify(jadwal)); } catch { /* noop */ }
 
     if (useDB) {
       const { error } = await supabase.from("pengaturan")
@@ -155,6 +165,27 @@ export default function PengaturanPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Jadwal Dokter per Hari */}
+      <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", marginBottom: "24px" }}>
+        <p className="section-title"><Calendar size={13} /> Jadwal Dokter per Hari</p>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "12px" }}>
+          {HARI_KEYS.map((key, i) => (
+            <div key={key}>
+              <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "7px" }}>{HARI_LABELS[i]}</label>
+              <input
+                className="form-input form-input-plain"
+                placeholder="Nama dokter"
+                value={jadwal[key] || ""}
+                onChange={e => setJadwal(j => ({ ...j, [key]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "12px 0 0" }}>
+          Jadwal ini akan ditampilkan di Dashboard sebagai "Dokter Jaga Hari Ini". Kosongkan jika klinik tutup/off di hari tersebut.
+        </p>
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>

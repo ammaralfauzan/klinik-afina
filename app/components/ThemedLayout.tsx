@@ -5,12 +5,12 @@ import ThemeToggle from "./ThemeToggle";
 import Image from "next/image";
 import { AudioProvider, MuteButton } from "./AudioNotif";
 
-const BYPASS_ROUTES = ["/login", "/display"];
+const BYPASS_ROUTES = ["/login", "/display", "/daftar-online"];
 
 export default function ThemedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (BYPASS_ROUTES.includes(pathname)) {
+  if (BYPASS_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"))) {
     return <>{children}</>;
   }
 

@@ -16,6 +16,21 @@ type RM = {
 
 const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum" };
 
+const DIAGNOSA_CHIPS = ["ISPA", "Gastroenteritis", "Demam Tifoid", "Hipertensi", "Faringitis Akut", "Dermatitis", "Mialgia", "Diabetes Mellitus"];
+const TINDAKAN_CHIPS = ["Pemeriksaan Fisik", "Injeksi IM", "Pemasangan Infus", "Rawat Luka", "Nebulisasi", "Cek GDS", "Suntik KB", "Pasang Kateter"];
+const OBAT_CHIPS = [
+  "Paracetamol 500mg 3×1",
+  "Amoxicillin 500mg 3×1",
+  "Ibuprofen 400mg 3×1",
+  "Antasida Syr 3×1 sbl makan",
+  "CTM 4mg 3×1",
+  "Vitamin C 500mg 1×1",
+  "Cetirizine 10mg 1×1",
+  "Omeprazole 20mg 2×1",
+  "Metformin 500mg 2×1",
+  "Amlodipine 5mg 1×1",
+];
+
 const MIGRATION_SQL = `-- Jalankan di Supabase Dashboard → SQL Editor
 CREATE TABLE IF NOT EXISTS rekam_medis (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -109,6 +124,14 @@ export default function RekamMedisPage() {
 
   function rmKey(nomor: number, nama: string) { return `${nomor}__${nama.toLowerCase().trim()}`; }
 
+  function appendChip(field: "diagnosa" | "tindakan" | "obat" | "catatan", text: string) {
+    setModal(m => {
+      if (!m) return m;
+      const cur = (m.rm[field] as string) || "";
+      return { ...m, rm: { ...m.rm, [field]: cur ? `${cur}\n${text}` : text } };
+    });
+  }
+
   function openModal(p: Pasien) {
     const key = rmKey(p.nomor_antrian, p.nama);
     const existing = rmMap.get(key);
@@ -179,6 +202,8 @@ export default function RekamMedisPage() {
         .rm-input { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 13px; font-size: 13px; color: var(--text-primary); outline: none; transition: border 0.2s; font-family: inherit; box-sizing: border-box; resize: none; }
         .rm-input:focus { border-color: var(--accent); }
         .rm-label { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px; }
+        .chip-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+        .chip-btn:hover { background: rgba(108,92,231,0.1); border-color: rgba(108,92,231,0.3); color: var(--accent); }
         @keyframes spin { to { transform: rotate(360deg); } }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 580px; }
@@ -464,19 +489,28 @@ export default function RekamMedisPage() {
               {/* Diagnosa */}
               <div>
                 <label className="rm-label">Diagnosa <span style={{ color: "#ef4444" }}>*</span></label>
-                <textarea className="rm-input" rows={3} value={modal.rm.diagnosa || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, diagnosa: e.target.value } } : m)} placeholder="Tulis diagnosa..." />
+                <textarea className="rm-input" rows={2} value={modal.rm.diagnosa || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, diagnosa: e.target.value } } : m)} placeholder="Tulis diagnosa..." />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
+                  {DIAGNOSA_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("diagnosa", c)}>+ {c}</button>)}
+                </div>
               </div>
 
               {/* Tindakan */}
               <div>
                 <label className="rm-label">Tindakan</label>
                 <textarea className="rm-input" rows={2} value={modal.rm.tindakan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, tindakan: e.target.value } } : m)} placeholder="Tindakan medis yang dilakukan..." />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
+                  {TINDAKAN_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("tindakan", c)}>+ {c}</button>)}
+                </div>
               </div>
 
               {/* Obat */}
               <div>
                 <label className="rm-label">Obat yang Diberikan</label>
                 <textarea className="rm-input" rows={3} value={modal.rm.obat || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, obat: e.target.value } } : m)} placeholder="Daftar obat & dosis, satu baris per obat..." />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
+                  {OBAT_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("obat", c)}>+ {c}</button>)}
+                </div>
               </div>
 
               {/* Catatan */}
