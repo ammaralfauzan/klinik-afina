@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
-import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope } from "lucide-react";
+import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope, Printer } from "lucide-react";
 
 type Pasien = {
   nomor_antrian: number; nama: string; keluhan: string;
@@ -54,6 +54,7 @@ export default function RekamMedisPage() {
   const [historis, setHistoris] = useState<RM[]>([]);
   const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
   const [searchH, setSearchH] = useState("");
+  const [resepModal, setResepModal] = useState<RM | null>(null);
 
   const today = getTodayRange();
 
@@ -77,7 +78,14 @@ export default function RekamMedisPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const channel = supabase.channel("realtime-rm")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rekam_medis" }, fetchData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchData]);
 
   useEffect(() => {
     if (tab !== "historis" || !tableOk) return;
@@ -174,6 +182,15 @@ export default function RekamMedisPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 580px; }
+        /* Resep print */
+        .resep-overlay { position: fixed; inset: 0; z-index: 9500; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.18s ease; }
+        .resep-card { background: #fff; border-radius: 16px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
+        @media print {
+          body > * { display: none !important; }
+          .resep-overlay { display: block !important; position: static !important; background: none !important; padding: 0 !important; }
+          .resep-card { box-shadow: none !important; border-radius: 0; border: none; max-width: 100%; max-height: none; }
+          .resep-no-print { display: none !important; }
+        }
       `}</style>
 
       {/* Toast */}
@@ -350,6 +367,74 @@ export default function RekamMedisPage() {
       </div>
       )}
 
+      {/* Resep Modal */}
+      {resepModal && (
+        <div className="resep-overlay" onClick={e => { if (e.target === e.currentTarget) setResepModal(null); }}>
+          <div className="resep-card">
+            {/* Header klinik */}
+            <div style={{ borderBottom: "2px solid #6C5CE7", paddingBottom: "14px", marginBottom: "18px", textAlign: "center" }}>
+              <p style={{ fontSize: "16px", fontWeight: 800, color: "#6C5CE7", margin: "0 0 2px" }}>Klinik & RB Afina</p>
+              <p style={{ fontSize: "11px", color: "#888", margin: 0 }}>Resep Dokter</p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px", fontSize: "12px" }}>
+              <div>
+                <p style={{ margin: 0, color: "#888" }}>Pasien</p>
+                <p style={{ margin: "2px 0 0", fontWeight: 700, color: "#1A1A2E" }}>{resepModal.pasien_nama}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ margin: 0, color: "#888" }}>Tanggal</p>
+                <p style={{ margin: "2px 0 0", fontWeight: 600, color: "#1A1A2E" }}>{new Date(resepModal.visit_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+              </div>
+            </div>
+            {resepModal.diagnosa && (
+              <div style={{ background: "#f8f7ff", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px" }}>
+                <p style={{ fontSize: "10px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>Diagnosa</p>
+                <p style={{ fontSize: "13px", color: "#1A1A2E", margin: 0 }}>{resepModal.diagnosa}</p>
+              </div>
+            )}
+            {/* R/ */}
+            <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "14px", marginBottom: "18px" }}>
+              <p style={{ fontSize: "20px", fontStyle: "italic", color: "#6C5CE7", fontWeight: 800, margin: "0 0 10px" }}>R/</p>
+              {(resepModal.obat || "—").split("\n").filter(Boolean).map((obat, i) => (
+                <div key={i} style={{ display: "flex", gap: "10px", marginBottom: "8px", alignItems: "flex-start" }}>
+                  <span style={{ fontSize: "13px", color: "#888", minWidth: "18px" }}>{i + 1}.</span>
+                  <p style={{ fontSize: "13px", color: "#1A1A2E", margin: 0, fontWeight: 500 }}>{obat}</p>
+                </div>
+              ))}
+            </div>
+            {resepModal.tindakan && (
+              <div style={{ marginBottom: "14px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>Tindakan</p>
+                <p style={{ fontSize: "12px", color: "#444", margin: 0 }}>{resepModal.tindakan}</p>
+              </div>
+            )}
+            {resepModal.catatan && (
+              <div style={{ marginBottom: "16px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>Catatan</p>
+                <p style={{ fontSize: "12px", color: "#444", margin: 0 }}>{resepModal.catatan}</p>
+              </div>
+            )}
+            {/* TTD */}
+            <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "16px", display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ textAlign: "center", minWidth: "140px" }}>
+                <p style={{ fontSize: "12px", color: "#888", margin: "0 0 40px" }}>{resepModal.dokter}</p>
+                <div style={{ borderTop: "1px solid #333", paddingTop: "6px" }}>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: "#1A1A2E", margin: 0 }}>{resepModal.dokter}</p>
+                </div>
+              </div>
+            </div>
+            <div className="resep-no-print" style={{ display: "flex", gap: "8px", marginTop: "20px" }}>
+              <button onClick={() => window.print()} style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "10px", padding: "11px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                <Printer size={14} /> Cetak Resep
+              </button>
+              <button onClick={() => setResepModal(null)} style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "10px", padding: "11px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {modal && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
@@ -402,12 +487,18 @@ export default function RekamMedisPage() {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: "16px 24px 22px", borderTop: "1px solid var(--border-color)", display: "flex", gap: "10px" }}>
+            <div style={{ padding: "16px 24px 22px", borderTop: "1px solid var(--border-color)", display: "flex", gap: "10px", flexWrap: "wrap" }}>
               <button onClick={saveRM} disabled={saving} className="rm-btn"
-                style={{ flex: 1, background: "var(--accent)", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", opacity: saving ? 0.7 : 1 }}>
+                style={{ flex: 1, minWidth: "140px", background: "var(--accent)", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", opacity: saving ? 0.7 : 1 }}>
                 {saving ? <span style={{ width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} /> : <Save size={14} />}
                 {saving ? "Menyimpan..." : "Simpan Rekam Medis"}
               </button>
+              {rmMap.has(rmKey(modal.pasien.nomor_antrian, modal.pasien.nama)) && (
+                <button onClick={() => { const rm = rmMap.get(rmKey(modal.pasien.nomor_antrian, modal.pasien.nama)); if (rm) setResepModal(rm); setModal(null); }} className="rm-btn"
+                  style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(108,92,231,0.25)", background: "rgba(108,92,231,0.08)", color: "var(--accent)", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Printer size={13} /> Cetak Resep
+                </button>
+              )}
               <button onClick={() => setModal(null)} style={{ padding: "12px 20px", borderRadius: "12px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                 Batal
               </button>

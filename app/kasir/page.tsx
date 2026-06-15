@@ -52,7 +52,13 @@ export default function KasirPage() {
     }
   }, []);
 
-  useEffect(() => { fetchPasien(); }, [fetchPasien]);
+  useEffect(() => {
+    fetchPasien();
+    const channel = supabase.channel("realtime-kasir")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, fetchPasien)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchPasien]);
 
   function getEdit(p: Pasien) {
     return edits.get(p.nomor_antrian) ?? { biaya: String(p.biaya ?? 0), status_bayar: p.status_bayar ?? "Belum Bayar" };

@@ -48,3 +48,11 @@ ALTER TABLE rekam_medis DISABLE ROW LEVEL SECURITY;
 
 -- Verifikasi:
 -- SELECT * FROM rekam_medis LIMIT 5;
+
+-- ============================================================
+-- LANGKAH 6: Nomor RM permanen + kolom BPJS / Asuransi
+-- ============================================================
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_rm TEXT DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS jenis_pembayaran TEXT DEFAULT 'Umum';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_bpjs TEXT DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nama_asuransi TEXT DEFAULT '';

@@ -26,6 +26,9 @@ type FormState = {
   alamat: string;
   keluhan: string;
   keluhan_lainnya: string;
+  jenis_pembayaran: string;
+  nomor_bpjs: string;
+  nama_asuransi: string;
 };
 
 type Errors = Partial<Record<keyof FormState, string>>;
@@ -41,6 +44,9 @@ const INITIAL_FORM: FormState = {
   alamat: "",
   keluhan: "",
   keluhan_lainnya: "",
+  jenis_pembayaran: "Umum",
+  nomor_bpjs: "",
+  nama_asuransi: "",
 };
 
 const MIGRATION_SQL = `-- 1. Tambah kolom yang dibutuhkan
@@ -146,7 +152,7 @@ export default function PasienPage() {
   const [copiedRLS, setCopiedRLS] = useState(false);
   const [jenisOpen, setJenisOpen] = useState(false);
   const jenisRef = useRef<HTMLDivElement>(null);
-  const [slip, setSlip] = useState<{ nomor: number; nama: string; keluhan: string; waktu: string } | null>(null);
+  const [slip, setSlip] = useState<{ nomor: number; nama: string; keluhan: string; waktu: string; nomor_rm: string; no_hp: string; jenis_pembayaran: string } | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [searchRes, setSearchRes] = useState<Array<{ nama: string; tanggal_lahir?: string; jenis_kelamin?: string; no_hp?: string; alamat?: string }>>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -208,8 +214,8 @@ export default function PasienPage() {
     return () => clearTimeout(t);
   }, [searchQ]);
 
-  function fillFromPatient(p: typeof searchRes[0]) {
-    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "" });
+  function fillFromPatient(p: typeof searchRes[0] & { jenis_pembayaran?: string; nomor_bpjs?: string; nama_asuransi?: string }) {
+    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "", jenis_pembayaran: p.jenis_pembayaran || "Umum", nomor_bpjs: p.nomor_bpjs || "", nama_asuransi: p.nama_asuransi || "" });
     setErrors({}); setTouched({}); setSearchQ(""); setSearchRes([]); setSearchOpen(false);
   }
 
@@ -270,7 +276,7 @@ export default function PasienPage() {
 
     setLoading(true);
     try {
-      // 1. Get next antrian number for today only (resets daily)
+      // 1. Nomor antrian hari ini
       const { start: todayStart, end: todayEnd } = getTodayRange();
       const { data: lastData, error: seqError } = await supabase
         .from("pasien")
@@ -295,7 +301,39 @@ export default function PasienPage() {
 
       const nomorBaru = lastData && lastData.length > 0 ? lastData[0].nomor_antrian + 1 : 1;
 
-      // 2. Build full payload
+      // 2. Nomor RM permanen — cek apakah pasien sudah pernah datang
+      let nomorRM = "";
+      try {
+        const namaTrim = form.nama.trim().toLowerCase();
+        // Cari RM yang sudah ada untuk pasien ini
+        const { data: existingRM } = await supabase
+          .from("pasien")
+          .select("nomor_rm")
+          .ilike("nama", form.nama.trim())
+          .eq("tanggal_lahir", form.tanggal_lahir)
+          .not("nomor_rm", "is", null)
+          .neq("nomor_rm", "")
+          .limit(1);
+
+        if (existingRM && existingRM.length > 0 && existingRM[0].nomor_rm) {
+          nomorRM = existingRM[0].nomor_rm; // pasien lama — pakai RM yang sama
+        } else {
+          // Pasien baru — generate RM baru
+          const { data: lastRM } = await supabase
+            .from("pasien")
+            .select("nomor_rm")
+            .not("nomor_rm", "is", null)
+            .neq("nomor_rm", "")
+            .order("nomor_rm", { ascending: false })
+            .limit(1);
+          const lastNum = lastRM && lastRM.length > 0
+            ? parseInt(lastRM[0].nomor_rm.replace("RM-", "")) || 0
+            : 0;
+          nomorRM = "RM-" + String(lastNum + 1).padStart(4, "0");
+        }
+      } catch { nomorRM = ""; }
+
+      // 3. Build full payload
       const payload = {
         nama: form.nama.trim(),
         keluhan: keluhanFinal,
@@ -303,6 +341,10 @@ export default function PasienPage() {
         jenis_kelamin: form.jenis_kelamin,
         alamat: form.alamat.trim(),
         no_hp: form.no_hp.replace(/\D/g, ""),
+        jenis_pembayaran: form.jenis_pembayaran,
+        nomor_bpjs: form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.trim() : "",
+        nama_asuransi: form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
+        nomor_rm: nomorRM,
         status: "Menunggu",
         nomor_antrian: nomorBaru,
         created_at: new Date().toISOString(),
@@ -334,6 +376,9 @@ export default function PasienPage() {
           nama: form.nama.trim(),
           keluhan: keluhanFinal,
           waktu: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          nomor_rm: nomorRM,
+          no_hp: form.no_hp.replace(/\D/g, ""),
+          jenis_pembayaran: form.jenis_pembayaran,
         });
         setForm(INITIAL_FORM);
         setErrors({});
@@ -491,8 +536,10 @@ export default function PasienPage() {
             {/* Detail */}
             <div style={{ borderTop: "1px dashed #e0e0e0", paddingTop: "16px", marginBottom: "24px" }}>
               {[
+                { label: "No. Rekam Medis", val: slip.nomor_rm || "—" },
                 { label: "Nama Pasien", val: slip.nama },
                 { label: "Keluhan", val: slip.keluhan },
+                { label: "Pembayaran", val: slip.jenis_pembayaran },
                 { label: "Waktu Daftar", val: slip.waktu },
                 { label: "Tanggal", val: new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) },
               ].map(({ label, val }) => (
@@ -508,17 +555,23 @@ export default function PasienPage() {
             </p>
 
             {/* Buttons */}
-            <div className="slip-no-print" style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={() => window.print()}
-                style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}
-              >
+            <div className="slip-no-print" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button onClick={() => window.print()}
+                style={{ flex: 1, minWidth: "120px", background: "#6C5CE7", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}>
                 <Printer size={15} /> Cetak Slip
               </button>
-              <button
-                onClick={() => setSlip(null)}
-                style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "12px", padding: "12px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}
-              >
+              {slip.no_hp && (() => {
+                const phone = slip.no_hp.replace(/^0/, "62");
+                const msg = `Yth. ${slip.nama}, pendaftaran Anda di Klinik & RB Afina berhasil!\n\n📋 No. Antrian: *${padNo(slip.nomor)}*\n🏥 No. RM: ${slip.nomor_rm || '-'}\n🤒 Keluhan: ${slip.keluhan}\n⏰ Waktu: ${slip.waktu}\n💳 Pembayaran: ${slip.jenis_pembayaran}\n\nSilakan menunggu dipanggil. Terima kasih 🙏`;
+                return (
+                  <button onClick={() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank")}
+                    style={{ flex: 1, minWidth: "120px", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.4)", borderRadius: "12px", padding: "12px", color: "#16a34a", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}>
+                    💬 Konfirmasi WA
+                  </button>
+                );
+              })()}
+              <button onClick={() => setSlip(null)}
+                style={{ width: "100%", background: "rgba(108,92,231,0.06)", border: "1px solid rgba(108,92,231,0.15)", borderRadius: "12px", padding: "10px", color: "#6C5CE7", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                 Tutup
               </button>
             </div>
@@ -840,6 +893,34 @@ export default function PasienPage() {
                 </div>
               )}
             </div>
+
+            {/* Jenis Pembayaran */}
+            <div className="form-full">
+              <label style={labelStyle}>Jenis Pembayaran</label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {["Umum", "BPJS", "Asuransi Swasta"].map(opt => (
+                  <button key={opt} type="button"
+                    onClick={() => updateField("jenis_pembayaran", opt)}
+                    style={{ padding: "9px 18px", borderRadius: "10px", border: `1.5px solid ${form.jenis_pembayaran === opt ? "var(--accent)" : "var(--border-color)"}`, background: form.jenis_pembayaran === opt ? "rgba(108,92,231,0.08)" : "var(--input-bg)", color: form.jenis_pembayaran === opt ? "var(--accent)" : "var(--text-secondary)", fontWeight: form.jenis_pembayaran === opt ? 700 : 500, fontSize: "13px", cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                    {opt === "Umum" ? "👤 Umum" : opt === "BPJS" ? "🏥 BPJS" : "📋 Asuransi Swasta"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {form.jenis_pembayaran === "BPJS" && (
+              <div>
+                <label style={labelStyle}>Nomor BPJS / NIK</label>
+                <input className="form-input" placeholder="Masukkan nomor kartu BPJS atau NIK..." value={form.nomor_bpjs} onChange={e => updateField("nomor_bpjs", e.target.value)} />
+              </div>
+            )}
+
+            {form.jenis_pembayaran === "Asuransi Swasta" && (
+              <div>
+                <label style={labelStyle}>Nama Asuransi & Nomor Polis</label>
+                <input className="form-input" placeholder="Contoh: Prudential - POL123456789" value={form.nama_asuransi} onChange={e => updateField("nama_asuransi", e.target.value)} />
+              </div>
+            )}
 
             {/* Submit */}
             <div className="form-full">
