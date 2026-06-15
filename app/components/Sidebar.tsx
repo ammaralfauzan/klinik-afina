@@ -68,15 +68,20 @@ export default function Sidebar() {
             display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
             background: #3D3478;
             border-top: 1px solid rgba(255,255,255,0.08);
-            padding: 8px 0 20px; justify-content: space-around;
+            padding: 6px 0 env(safe-area-inset-bottom, 16px);
+            overflow-x: auto; overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; -ms-overflow-style: none;
           }
+          .mobile-bottomnav::-webkit-scrollbar { display: none; }
           .mobile-nav-item {
             display: flex; flex-direction: column; align-items: center;
-            gap: 4px; padding: 6px 12px; border-radius: 12px;
-            text-decoration: none; transition: background 0.18s; min-width: 56px;
+            gap: 3px; padding: 6px 10px; border-radius: 10px;
+            text-decoration: none; transition: background 0.18s;
+            flex-shrink: 0; min-width: 52px;
           }
-          .mobile-nav-item span { font-size: 10px; font-weight: 600; }
-          .mobile-nav-active { background: rgba(255,255,255,0.12); }
+          .mobile-nav-item span { font-size: 9px; font-weight: 600; white-space: nowrap; }
+          .mobile-nav-active { background: rgba(255,255,255,0.14); }
         }
       `}</style>
 

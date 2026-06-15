@@ -116,6 +116,7 @@ export default function Home() {
         @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
         @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr !important; } }
         @media (max-width: 900px) { .dash-main-grid { grid-template-columns: 1fr !important; } }
+        .dash-chart-wrap { width: 100%; min-width: 0; overflow: hidden; }
       `}</style>
 
       <div style={{ marginBottom: "28px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
@@ -202,6 +203,7 @@ export default function Home() {
             <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>7 Hari Terakhir</h3>
           </div>
           {weekData.length > 0 ? (
+            <div className="dash-chart-wrap">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={weekData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
@@ -215,6 +217,7 @@ export default function Home() {
                 <Bar dataKey="count" fill="#7B61FF" radius={[6, 6, 0, 0]} maxBarSize={36} />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           ) : (
             <div style={{ height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "13px" }}>
               Memuat grafik...
