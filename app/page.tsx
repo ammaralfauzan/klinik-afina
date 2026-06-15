@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { Users, Clock, Stethoscope, CheckCircle } from "lucide-react";
-import { usePatientNotification } from "./hooks/usePatientNotification";
+import { useAudio } from "./components/AudioNotif";
 import Toast from "./components/Toast";
 
 type Pasien = { nama: string; keluhan: string; status: string; nomor_antrian: number; };
@@ -10,7 +10,7 @@ type Pasien = { nama: string; keluhan: string; status: string; nomor_antrian: nu
 export default function Home() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
   const [toast, setToast] = useState({ visible: false, message: "" });
-  const { playBeep } = usePatientNotification();
+  const { playDing } = useAudio();
 
   const fetchPasien = useCallback(async () => {
     const { data } = await supabase.from("pasien").select("*").order("nomor_antrian", { ascending: true });
@@ -22,7 +22,7 @@ export default function Home() {
     const channel = supabase.channel("realtime-pasien")
       .on("postgres_changes", { event: "*", schema: "public", table: "pasien" }, (payload) => {
         if (payload.eventType === "INSERT") {
-          playBeep();
+          playDing();
           const newPatient = payload.new as Pasien;
           setToast({ visible: true, message: `Pasien baru: ${newPatient.nama}` });
         }
@@ -30,7 +30,7 @@ export default function Home() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [fetchPasien, playBeep]);
+  }, [fetchPasien, playDing]);
 
   const stats = [
     { label: "Pasien Hari Ini", value: pasienList.length, icon: Users, color: "#7B61FF", border: "rgba(123,97,255,0.15)", bg: "rgba(123,97,255,0.1)" },

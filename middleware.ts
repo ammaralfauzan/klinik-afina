@@ -5,7 +5,8 @@ export function middleware(request: NextRequest) {
   const isLoggedIn = request.cookies.get("isLoggedIn")?.value;
   const { pathname } = request.nextUrl;
 
-  if (!isLoggedIn && pathname !== "/login") {
+  const publicRoutes = ["/login", "/display"];
+  if (!isLoggedIn && !publicRoutes.includes(pathname)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

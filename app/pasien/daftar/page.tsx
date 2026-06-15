@@ -319,10 +319,4 @@ export default function DaftarPasienPage() {
       )}
     </div>
   );
-
-  function getStatusBadge(status: string) {
-    if (status === "Selesai") return { bg: "rgba(16,185,129,0.12)", color: "#059669", border: "rgba(16,185,129,0.25)", icon: CheckCircle2 };
-    if (status === "Sedang Diperiksa") return { bg: "rgba(14,165,233,0.12)", color: "#0284c7", border: "rgba(14,165,233,0.25)", icon: Stethoscope };
-    return { bg: "rgba(245,158,11,0.12)", color: "#d97706", border: "rgba(245,158,11,0.25)", icon: Clock };
-  }
 }
