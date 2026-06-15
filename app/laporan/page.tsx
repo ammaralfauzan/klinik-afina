@@ -227,10 +227,12 @@ export default function LaporanPage() {
         }
         .laporan-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
         .laporan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .laporan-revenue-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
         @media (max-width: 900px) { .laporan-stats-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 640px) {
           .laporan-stats-grid { grid-template-columns: repeat(2, 1fr); }
           .laporan-grid { grid-template-columns: 1fr; }
+          .laporan-revenue-grid { grid-template-columns: 1fr; }
         }
 
         /* Print styles */
@@ -321,7 +323,7 @@ export default function LaporanPage() {
 
             {/* REVENUE ROW */}
             {totalPendapatan > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "24px" }}>
+              <div className="laporan-revenue-grid">
                 {[
                   { label: "Total Pendapatan", val: "Rp " + totalPendapatan.toLocaleString("id-ID"), color: "#059669", bg: "rgba(16,185,129,0.1)" },
                   { label: "Pasien Lunas", val: jumlahLunas, color: "#0284c7", bg: "rgba(14,165,233,0.1)" },

@@ -470,6 +470,7 @@ export function TourFloatingButton() {
     <button
       onClick={startTour}
       title="Mulai Tur Aplikasi"
+      className="tour-fab"
       style={{
         position: "fixed", bottom: "24px", right: "24px", zIndex: 8000,
         width: "48px", height: "48px", borderRadius: "50%",

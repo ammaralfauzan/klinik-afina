@@ -137,6 +137,7 @@ export default function AntrianPage() {
         .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
         .search-input { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 9px 12px 9px 34px; font-size: 13px; color: var(--text-primary); outline: none; width: 200px; font-family: inherit; transition: border 0.2s, width 0.2s; }
         .search-input:focus { border-color: var(--accent); width: 240px; }
+        @media (max-width: 640px) { .search-wrap { flex: 1; } .search-input { width: 100% !important; } }
         .search-input::placeholder { color: var(--text-secondary); }
       `}</style>
 

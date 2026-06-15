@@ -147,6 +147,7 @@ export default function KasirPage() {
         .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 680px; }
+        @media (max-width: 640px) { .kasir-stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
         .nota-overlay { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.18s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .nota-card { background: #fff; border-radius: 20px; padding: 32px; max-width: 340px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: slideUp 0.2s cubic-bezier(0.34,1.56,0.64,1); }
@@ -240,7 +241,7 @@ export default function KasirPage() {
 
       {/* Summary cards */}
       {colsOk && (
-        <div data-tour="kasir-summary" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
+        <div data-tour="kasir-summary" className="kasir-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
           {[
             { label: "Pasien Hari Ini", val: totalPasien, color: "#7B61FF", icon: CreditCard },
             { label: "Selesai Diperiksa", val: selesai, color: "#0284c7", icon: CheckCircle2 },

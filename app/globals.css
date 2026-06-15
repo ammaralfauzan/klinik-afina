@@ -12,56 +12,51 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-@media (max-width: 768px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .form-grid { grid-template-columns: 1fr !important; }
-  .laporan-grid { grid-template-columns: 1fr !important; }
-}
-@media (max-width: 768px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .form-grid { grid-template-columns: 1fr !important; }
-  .laporan-grid { grid-template-columns: 1fr !important; }
-}
-/* ===== MOBILE RESPONSIVE ===== */
-@media (max-width: 768px) {
-  /* Fix overflow konten */
-  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .form-grid { grid-template-columns: 1fr !important; }
-  .laporan-grid { grid-template-columns: 1fr !important; }
-  .laporan-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+/* ===== RESPONSIVE ===== */
+.mobile-header { display: none; }
 
-  /* Fix tabel - scroll horizontal */
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { min-width: 500px; }
-
-  /* Fix padding konten utama */
+@media (max-width: 768px) {
+  /* Layout */
   main { padding: 16px !important; }
+  .main-content { padding-bottom: 90px !important; }
 
-  /* Fix header title overflow */
-  header h2 { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+  /* Header swap */
+  .desktop-header { display: none !important; }
+  .mobile-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-header);
+    position: sticky; top: 0; z-index: 10;
+  }
 
-  /* Fix page title overflow */
+  /* Grid breakpoints */
+  .stats-grid        { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-stats-grid{ grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-grid      { grid-template-columns: 1fr !important; }
+  .form-grid         { grid-template-columns: 1fr !important; }
+  .kasir-stats-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .laporan-revenue-grid { grid-template-columns: 1fr !important; }
+
+  /* Tables: scroll horizontally, not overflow */
+  .table-wrapper                { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table          { min-width: 480px; }
+
+  /* Tour floating button clears bottom nav */
+  .tour-fab { bottom: 90px !important; }
+
+  /* Page titles */
   h1 { font-size: 20px !important; }
 }
 
-@media (max-width: 768px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .laporan-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .laporan-grid { grid-template-columns: 1fr !important; }
-  .form-grid { grid-template-columns: 1fr !important; }
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-wrapper table { min-width: 480px; }
+@media (max-width: 480px) {
+  .jadwal-grid { grid-template-columns: repeat(3, 1fr) !important; }
 }

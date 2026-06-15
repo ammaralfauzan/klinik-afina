@@ -100,6 +100,9 @@ export default function PengaturanPage() {
         .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) saturate(3) hue-rotate(240deg); cursor: pointer; }
+        .jadwal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+        @media (max-width: 900px) { .jadwal-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 480px) { .jadwal-grid { grid-template-columns: repeat(3, 1fr); } }
         .section-title { font-size: 12px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
         @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr !important; } }
       `}</style>
@@ -170,7 +173,7 @@ export default function PengaturanPage() {
       {/* Jadwal Dokter per Hari */}
       <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", marginBottom: "24px" }}>
         <p className="section-title"><Calendar size={13} /> Jadwal Dokter per Hari</p>
-        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "12px" }}>
+        <div className="jadwal-grid">
           {HARI_KEYS.map((key, i) => (
             <div key={key}>
               <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "7px" }}>{HARI_LABELS[i]}</label>
