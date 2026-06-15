@@ -112,8 +112,10 @@ export default function Home() {
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrapper table { min-width: 480px; }
         .recharts-tooltip-wrapper { font-size: 12px !important; }
-        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
-        @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px) { .dash-main-grid { grid-template-columns: 1fr !important; } }
       `}</style>
 
       <div style={{ marginBottom: "28px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
@@ -149,7 +151,7 @@ export default function Home() {
         })}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", marginBottom: "20px" }}>
+      <div className="dash-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", marginBottom: "20px" }}>
         {/* Antrian table */}
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>

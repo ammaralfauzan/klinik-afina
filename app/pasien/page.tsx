@@ -196,7 +196,7 @@ export default function PasienPage() {
     if (!searchQ.trim()) { setSearchRes([]); return; }
     const t = setTimeout(async () => {
       const { data } = await supabase.from("pasien")
-        .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat")
+        .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat, jenis_pembayaran, nomor_bpjs, nama_asuransi")
         .or(`nama.ilike.%${searchQ.trim()}%,no_hp.ilike.%${searchQ.trim()}%`)
         .order("created_at", { ascending: false })
         .limit(30);
@@ -304,7 +304,6 @@ export default function PasienPage() {
       // 2. Nomor RM permanen — cek apakah pasien sudah pernah datang
       let nomorRM = "";
       try {
-        const namaTrim = form.nama.trim().toLowerCase();
         // Cari RM yang sudah ada untuk pasien ini
         const { data: existingRM } = await supabase
           .from("pasien")
