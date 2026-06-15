@@ -18,7 +18,7 @@ export default function ThemedLayout({ children }: { children: React.ReactNode }
   return (
     <TourProvider>
     <AudioProvider>
-      <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-main)" }}>
+      <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-main)", overflowX: "hidden", maxWidth: "100vw" }}>
         <Sidebar />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 

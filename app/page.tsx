@@ -127,6 +127,8 @@ export default function Home() {
           min-width: 0;
         }
         .dash-chart-wrap { width: 100%; min-width: 0; overflow: hidden; }
+        .dash-main-grid > * { min-width: 0; }
+        .stats-grid > * { min-width: 0; }
 
         @media (max-width: 900px) {
           .stats-grid { grid-template-columns: repeat(3, 1fr); }
