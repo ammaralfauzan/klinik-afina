@@ -208,7 +208,7 @@ export default function Home() {
                 <Tooltip
                   contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "10px", fontSize: "12px", color: "var(--text-primary)" }}
                   cursor={{ fill: "rgba(123,97,255,0.06)" }}
-                  formatter={(v: number) => [`${v} pasien`, "Kunjungan"]}
+                  formatter={(v: unknown) => [`${v} pasien`, "Kunjungan"]}
                 />
                 <Bar dataKey="count" fill="#7B61FF" radius={[6, 6, 0, 0]} maxBarSize={36} />
               </BarChart>
