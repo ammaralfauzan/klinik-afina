@@ -332,7 +332,7 @@ export default function RekamMedisPage() {
 
       {/* Table — hari ini */}
       {tab === "hari-ini" && (
-      <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
+      <div data-tour="rm-table" style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
         <div className="table-wrapper">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>

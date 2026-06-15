@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List, FileText, CreditCard } from "lucide-react";
+import { SidebarTourButton } from "./AppTour";
 import Image from "next/image";
 
 type NavItem = {
@@ -170,7 +171,10 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div style={{ padding: "14px 14px 18px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+          <div style={{ marginBottom: "10px" }}>
+            <SidebarTourButton />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
             <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>

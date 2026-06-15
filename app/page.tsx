@@ -132,7 +132,7 @@ export default function Home() {
         )}
       </div>
 
-      <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "14px", marginBottom: "24px" }}>
+      <div data-tour="dashboard-stats" className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "14px", marginBottom: "24px" }}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -196,7 +196,7 @@ export default function Home() {
         </div>
 
         {/* 7-day chart */}
-        <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
+        <div data-tour="dashboard-chart" style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
             <TrendingUp size={16} color="#7B61FF" />
             <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>7 Hari Terakhir</h3>

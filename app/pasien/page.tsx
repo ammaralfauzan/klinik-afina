@@ -712,7 +712,7 @@ export default function PasienPage() {
       )}
 
       {/* ── CARI PASIEN LAMA ── */}
-      <div style={{ maxWidth: "700px", marginBottom: "20px" }}>
+      <div data-tour="pasien-search" style={{ maxWidth: "700px", marginBottom: "20px" }}>
         <div style={{ background: "var(--bg-card)", borderRadius: "14px", padding: "18px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Pasien Kembali?</p>
           <div ref={searchRef} style={{ position: "relative" }}>
@@ -751,7 +751,7 @@ export default function PasienPage() {
       </div>
 
       {/* ── FORM ── */}
-      <div style={{ maxWidth: "700px" }}>
+      <div data-tour="pasien-form" style={{ maxWidth: "700px" }}>
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "28px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div className="form-grid">
 

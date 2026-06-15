@@ -175,7 +175,7 @@ export default function AntrianPage() {
       </div>
 
       {/* Status filter tabs */}
-      <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div data-tour="antrian-filter" style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
         {["Semua", "Menunggu", "Sedang Diperiksa", "Selesai", "Tidak Hadir"].map(f => (
           <button key={f} className={`filter-btn${statusFilter === f ? " active" : ""}`} onClick={() => setStatusFilter(f)}>
             {f} {f !== "Semua" && <span style={{ opacity: 0.75 }}>({pasienList.filter(p => p.status === f).length})</span>}
@@ -184,7 +184,7 @@ export default function AntrianPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
+      <div data-tour="antrian-table" style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
         <div className="table-wrapper">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>

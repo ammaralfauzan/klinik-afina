@@ -260,7 +260,7 @@ export default function LaporanPage() {
             <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Laporan</h1>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Statistik dan analitik aktivitas klinik</p>
           </div>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div data-tour="laporan-export" style={{ display: "flex", gap: "8px" }}>
             <button onClick={handleExportCSV}
               style={{ display: "flex", alignItems: "center", gap: "7px", background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.18s" }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.8")} onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
@@ -298,7 +298,7 @@ export default function LaporanPage() {
         ) : (
           <>
             {/* STAT CARDS */}
-            <div className="laporan-stats-grid" style={{ marginBottom: "24px" }}>
+            <div data-tour="laporan-stats" className="laporan-stats-grid" style={{ marginBottom: "24px" }}>
               {stats.map((s) => {
                 const Icon = s.icon;
                 return (

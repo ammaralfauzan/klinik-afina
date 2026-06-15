@@ -240,7 +240,7 @@ export default function KasirPage() {
 
       {/* Summary cards */}
       {colsOk && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
+        <div data-tour="kasir-summary" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
           {[
             { label: "Pasien Hari Ini", val: totalPasien, color: "#7B61FF", icon: CreditCard },
             { label: "Selesai Diperiksa", val: selesai, color: "#0284c7", icon: CheckCircle2 },
@@ -265,7 +265,7 @@ export default function KasirPage() {
 
       {/* Table */}
       <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
-        <div className="table-wrapper">
+        <div data-tour="kasir-table" className="table-wrapper">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-color)", background: "var(--table-header-bg)" }}>
