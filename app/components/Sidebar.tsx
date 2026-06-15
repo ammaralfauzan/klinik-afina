@@ -24,103 +24,113 @@ export default function Sidebar() {
     router.push("/login");
   }
 
-  const sidebarBg = dark
-    ? "linear-gradient(180deg, #0f0520 0%, #1a0533 50%, #0f0a1e 100%)"
-    : "linear-gradient(180deg, #2E2466 0%, #3D3178 100%)";
+  const sidebarBg = dark ? "#1a1830" : "#3D3478";
 
   return (
     <>
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-2px); }
-        }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .nav-icon-default { animation: float 3s ease-in-out infinite; }
-        .nav-icon-settings { animation: spin-slow 8s linear infinite; }
-        .nav-link { border: 1px solid transparent; transition: all 0.2s; }
-        .nav-link:hover { background: rgba(255,255,255,0.08) !important; }
-        .nav-link-active { background: rgba(255,255,255,0.12) !important; border-color: rgba(255,255,255,0.15) !important; }
+        .nav-icon-settings { animation: spin-slow 10s linear infinite; }
+        .nav-link {
+          display: flex; align-items: center; gap: 12px;
+          padding: 10px 14px; border-radius: 10px; font-size: 13px;
+          text-decoration: none; transition: background 0.18s, color 0.18s;
+          position: relative; border: none;
+        }
+        .nav-link:hover { background: rgba(255,255,255,0.08); }
+        .nav-link-active { background: rgba(255,255,255,0.14); }
+        .nav-link-active::before {
+          content: ''; position: absolute; left: 0; top: 50%;
+          transform: translateY(-50%); width: 3px; height: 20px;
+          background: #F5A623; border-radius: 0 3px 3px 0;
+        }
         .desktop-sidebar { display: flex; width: 230px; min-height: 100vh; flex-shrink: 0; }
         .mobile-bottomnav { display: none; }
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .mobile-bottomnav {
             display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-            background: #2E2466;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            background: #3D3478;
+            border-top: 1px solid rgba(255,255,255,0.08);
             padding: 8px 0 20px; justify-content: space-around;
           }
-          .mobile-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 12px; text-decoration: none; transition: all 0.2s; min-width: 56px; }
+          .mobile-nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; padding: 6px 12px; border-radius: 12px;
+            text-decoration: none; transition: background 0.18s; min-width: 56px;
+          }
           .mobile-nav-item span { font-size: 10px; font-weight: 600; }
-          .mobile-nav-active { background: rgba(255,255,255,0.1) !important; }
+          .mobile-nav-active { background: rgba(255,255,255,0.12); }
         }
       `}</style>
 
       <aside className="desktop-sidebar" style={{
-        position: "relative", overflow: "hidden",
         background: sidebarBg, flexDirection: "column",
-        boxShadow: "2px 0 12px rgba(0,0,0,0.3)",
+        boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
       }}>
-        {/* Grid bg subtle */}
-        <div style={{ position: "absolute", inset: 0, opacity: 0.04, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-
         {/* Logo */}
-        <div style={{ padding: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", position: "relative" }}>
+        <div style={{ padding: "22px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "50%", flexShrink: 0, border: "1px solid rgba(255,255,255,0.2)", background: "#fff", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Image src="/logo-afina.png" alt="Klinik Afina" width={48} height={48} style={{ width: "88%", height: "88%", objectFit: "contain" }} />
+            <div style={{ width: "40px", height: "40px", borderRadius: "10px", flexShrink: 0, background: "rgba(255,255,255,0.12)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Image src="/logo-afina.png" alt="Klinik Afina" width={40} height={40} style={{ width: "84%", height: "84%", objectFit: "contain" }} />
             </div>
             <div>
-              <h1 style={{ color: "#fff", fontWeight: 700, fontSize: "13px", margin: 0 }}>Klinik & RB Afina</h1>
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>Sistem Manajemen</p>
+              <h1 style={{ color: "#fff", fontWeight: 700, fontSize: "13px", margin: 0, letterSpacing: "-0.01em" }}>Klinik & RB Afina</h1>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", margin: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>Sistem Manajemen</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "2px" }}>
-          {navItems.map((item, i) => {
+        <nav style={{ flex: 1, padding: "14px 10px", display: "flex", flexDirection: "column", gap: "2px" }}>
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const isSettings = item.href === "/pengaturan";
             return (
-              <Link key={item.label} href={item.href}
+              <Link
+                key={item.label}
+                href={item.href}
                 className={`nav-link ${isActive ? "nav-link-active" : ""}`}
-                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", color: isActive ? "#fff" : "rgba(255,255,255,0.6)", textDecoration: "none", fontWeight: isActive ? 600 : 400 }}>
-                <span className={isSettings ? "nav-icon-settings" : "nav-icon-default"} style={{ display: "flex", animationDelay: `${i * 0.3}s` }}>
-                  <Icon size={16} color={isActive ? "#fff" : "rgba(255,255,255,0.5)"} strokeWidth={isActive ? 2 : 1.5} />
+                style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: isActive ? 600 : 400 }}
+              >
+                <span className={isSettings ? "nav-icon-settings" : ""} style={{ display: "flex", flexShrink: 0 }}>
+                  <Icon size={16} color={isActive ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth={isActive ? 2 : 1.5} />
                 </span>
                 <span>{item.label}</span>
-                {isActive && <div style={{ marginLeft: "auto", width: "5px", height: "5px", borderRadius: "50%", background: "#fff", opacity: 0.8 }} />}
+                {isActive && (
+                  <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#F5A623" }} />
+                )}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div style={{ padding: "14px 14px 18px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
             </div>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ color: "#fff", fontSize: "12px", fontWeight: 600, margin: 0 }}>Admin</p>
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", margin: 0 }}>Administrator</p>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", margin: 0 }}>admin@klinik-afina.com</p>
             </div>
-            <div style={{ marginLeft: "auto", width: "7px", height: "7px", borderRadius: "50%", background: "#4ade80" }} />
+            <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
           </div>
           <button
             onClick={handleLogout}
             style={{
-              width: "100%", marginTop: "10px",
-              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
-              color: "rgba(255,255,255,0.7)", borderRadius: "8px", padding: "8px 12px",
+              width: "100%", background: "rgba(255,255,255,0.07)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.6)", borderRadius: "8px", padding: "8px 12px",
               fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center",
-              justifyContent: "center", gap: "6px", fontFamily: "inherit", transition: "all 0.2s",
+              justifyContent: "center", gap: "6px", fontFamily: "inherit", transition: "all 0.18s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.07)")}
           >
             <LogOut size={13} />
             Keluar
@@ -132,7 +142,7 @@ export default function Sidebar() {
       <nav className="mobile-bottomnav">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <Link key={item.label} href={item.href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
               <Icon size={22} color={isActive ? "#fff" : "rgba(255,255,255,0.4)"} strokeWidth={isActive ? 2 : 1.5} />

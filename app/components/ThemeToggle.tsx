@@ -8,13 +8,13 @@ export default function ThemeToggle() {
   return (
     <button onClick={toggle} style={{
       display: "flex", alignItems: "center", gap: "8px",
-      background: dark ? "rgba(168,85,247,0.1)" : "rgba(99,102,241,0.1)",
-      border: dark ? "1px solid rgba(168,85,247,0.3)" : "1px solid rgba(99,102,241,0.3)",
+      background: "var(--input-bg)",
+      border: "1px solid var(--border-color)",
       borderRadius: "20px", padding: "6px 14px", cursor: "pointer",
       transition: "all 0.3s",
     }}>
-      {dark ? <Sun size={14} color="#fbbf24" /> : <Moon size={14} color="#6366f1" />}
-      <span style={{ fontSize: "12px", fontWeight: 600, color: dark ? "#fbbf24" : "#6366f1" }}>
+      {dark ? <Sun size={14} color="var(--accent2)" /> : <Moon size={14} color="var(--accent)" />}
+      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
         {dark ? "Light" : "Dark"}
       </span>
     </button>

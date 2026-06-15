@@ -42,14 +42,14 @@ export default function PasienPage() {
     <div>
       <style>{`
         .form-input {
-          width: 100%; background: var(--input-bg, rgba(168,85,247,0.05));
+          width: 100%; background: var(--input-bg, #F0EFFF);
           border: 1px solid var(--border-color); border-radius: 10px;
           padding: 11px 14px; font-size: 13px; color: var(--text-primary);
           outline: none; transition: all 0.2s; box-sizing: border-box;
           font-family: inherit;
         }
         .form-input::placeholder { color: var(--text-secondary); }
-        .form-input:focus { border-color: rgba(123,97,255,0.6); box-shadow: 0 0 0 3px rgba(123,97,255,0.08); }
+        .form-input:focus { border-color: var(--accent); background: var(--bg-card); }
         .submit-btn { transition: all 0.2s; }
         .submit-btn:hover:not(:disabled) { transform: translateY(-1px); }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -19,36 +19,38 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
         <style>{`
           [data-theme="dark"] {
-            --bg-main: linear-gradient(135deg, #0d0d1a 0%, #130825 100%);
-            --bg-header: rgba(15,5,32,0.95);
-            --bg-card: rgba(255,255,255,0.04);
-            --border-color: rgba(123,97,255,0.15);
-            --border-header: rgba(123,97,255,0.2);
-            --text-primary: #f1e6ff;
-            --text-secondary: #9ca3af;
-            --text-accent: #e9d5ff;
+            --bg-main: #0f0e1a;
+            --bg-header: #16152a;
+            --bg-card: #1e1d35;
+            --border-color: rgba(255,255,255,0.07);
+            --border-header: rgba(255,255,255,0.07);
+            --text-primary: #f0eeff;
+            --text-secondary: #8b8fa8;
+            --text-accent: #c4b5fd;
             --accent: #7B61FF;
             --accent2: #F5A623;
-            --header-text: #e2d4f0;
-            --table-hover: rgba(123,97,255,0.05);
-            --table-header-bg: rgba(123,97,255,0.06);
-            --shadow: 0 2px 12px rgba(0,0,0,0.3);
+            --header-text: #f0eeff;
+            --input-bg: rgba(255,255,255,0.06);
+            --table-hover: rgba(255,255,255,0.04);
+            --table-header-bg: rgba(255,255,255,0.03);
+            --shadow: 0 2px 16px rgba(0,0,0,0.35);
           }
           [data-theme="light"] {
-            --bg-main: #F0EEFF;
+            --bg-main: #F5F4FF;
             --bg-header: #FFFFFF;
             --bg-card: #FFFFFF;
             --border-color: rgba(0,0,0,0.06);
-            --border-header: rgba(0,0,0,0.07);
+            --border-header: rgba(0,0,0,0.06);
             --text-primary: #1A1A2E;
             --text-secondary: #8B8FA8;
             --text-accent: #3D3178;
-            --accent: #7B61FF;
+            --accent: #6C5CE7;
             --accent2: #F5A623;
             --header-text: #1A1A2E;
-            --table-hover: rgba(123,97,255,0.04);
-            --table-header-bg: rgba(123,97,255,0.03);
-            --shadow: 0 2px 12px rgba(0,0,0,0.07);
+            --input-bg: #F0EFFF;
+            --table-hover: rgba(108,92,231,0.04);
+            --table-header-bg: rgba(108,92,231,0.03);
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }

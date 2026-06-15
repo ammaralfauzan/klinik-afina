@@ -18,21 +18,37 @@ export default function ThemedLayout({ children }: { children: React.ReactNode }
 
         {/* DESKTOP HEADER */}
         <header className="desktop-header" style={{
-          background: "var(--bg-header)", padding: "14px 20px",
+          background: "var(--bg-header)", padding: "12px 24px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           borderBottom: "1px solid var(--border-header)",
-          backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10,
+          position: "sticky", top: 0, zIndex: 10,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: "linear-gradient(180deg, #F5A623, #7B61FF)" }} />
-            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--header-text)", letterSpacing: "0.03em" }}>
-              Klinik Afina — Sistem Manajemen
-            </h2>
+          {/* Welcome pill — left side */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: "10px",
+            background: "var(--input-bg)", border: "1px solid var(--border-color)",
+            borderRadius: "24px", padding: "8px 18px",
+          }}>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1 }}>👋</span>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>Selamat datang, Admin!</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <ThemeToggle />
-            <div style={{ background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)", borderRadius: "20px", padding: "6px 16px", fontSize: "12px", color: "var(--accent)", fontWeight: 500 }}>
-              ✦ Selamat datang, Admin
+            <div style={{ width: "1px", height: "24px", background: "var(--border-color)" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{
+                width: "34px", height: "34px", borderRadius: "50%",
+                background: "linear-gradient(135deg, #6C5CE7, #a78bfa)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>admin@klinik-afina.com</span>
             </div>
           </div>
         </header>
@@ -40,8 +56,8 @@ export default function ThemedLayout({ children }: { children: React.ReactNode }
         {/* MOBILE HEADER */}
         <header className="mobile-header">
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#fff", border: "1px solid rgba(168,85,247,0.3)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Image src="/logo-afina.png" alt="Logo" width={36} height={36} style={{ width: "88%", height: "88%", objectFit: "contain" }} />
+            <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "var(--input-bg)", border: "1px solid var(--border-color)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Image src="/logo-afina.png" alt="Logo" width={34} height={34} style={{ width: "80%", height: "80%", objectFit: "contain" }} />
             </div>
             <div>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--header-text)", margin: 0 }}>Klinik & RB Afina</p>

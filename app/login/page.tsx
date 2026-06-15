@@ -38,20 +38,20 @@ export default function LoginPage() {
         body { font-family: 'Inter', system-ui, sans-serif; }
         h1, h2, h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
         .login-input {
-          width: 100%; background: #F8F7FF; border: 1.5px solid #E8E4FF;
+          width: 100%; background: #F0EFFF; border: 1.5px solid #E4E0FF;
           border-radius: 10px; padding: 12px 14px; font-size: 14px;
           color: #1A1A2E; outline: none; transition: all 0.2s;
           font-family: 'Inter', sans-serif;
         }
         .login-input::placeholder { color: #B0AECA; }
-        .login-input:focus { border-color: #7B61FF; background: #fff; box-shadow: 0 0 0 3px rgba(123,97,255,0.1); }
+        .login-input:focus { border-color: #6C5CE7; background: #fff; }
         .login-btn {
-          width: 100%; background: #7B61FF; color: #fff;
+          width: 100%; background: #6C5CE7; color: #fff;
           border: none; border-radius: 12px; padding: 14px;
           font-size: 15px; font-weight: 700; cursor: pointer;
           transition: all 0.2s; font-family: 'Inter', sans-serif;
         }
-        .login-btn:hover:not(:disabled) { background: #6A50EE; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(123,97,255,0.35); }
+        .login-btn:hover:not(:disabled) { background: #5a4bd1; transform: translateY(-1px); }
         .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .login-card { animation: fadeIn 0.5s ease forwards; }
@@ -105,7 +105,7 @@ export default function LoginPage() {
           {/* Form */}
           <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
             <div>
-              <label style={{ fontSize: "12px", fontWeight: 700, color: "#7B61FF", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Email</label>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Email</label>
               <input
                 className="login-input"
                 type="email"
@@ -118,7 +118,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", fontWeight: 700, color: "#7B61FF", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Password</label>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "8px" }}>Password</label>
               <div style={{ position: "relative" }}>
                 <input
                   className="login-input"
