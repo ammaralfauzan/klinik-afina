@@ -6,6 +6,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import Image from "next/image";
 
 export const metadata: Metadata = {
+  icons: { icon: "/logo-afina.png" },
   title: "Klinik Afina",
   description: "Sistem Manajemen Klinik",
 };
