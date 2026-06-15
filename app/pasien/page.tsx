@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
-import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check } from "lucide-react";
 
 const KELUHAN_OPTIONS = [
   "Demam",
@@ -30,6 +30,9 @@ type FormState = {
 
 type Errors = Partial<Record<keyof FormState, string>>;
 
+// Status schema check
+type SchemaStatus = "checking" | "ok" | "missing_columns" | "rls_error" | "conn_error";
+
 const INITIAL_FORM: FormState = {
   nama: "",
   tanggal_lahir: "",
@@ -39,6 +42,11 @@ const INITIAL_FORM: FormState = {
   keluhan: "",
   keluhan_lainnya: "",
 };
+
+const MIGRATION_SQL = `ALTER TABLE pasien ADD COLUMN IF NOT EXISTS tanggal_lahir DATE;
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS jenis_kelamin TEXT DEFAULT 'Laki-laki';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS alamat TEXT DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS no_hp TEXT DEFAULT '';`;
 
 function formatHP(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 13);
@@ -88,46 +96,93 @@ function validate(form: FormState): Errors {
   return errs;
 }
 
+// Classify Supabase error into actionable category
+function classifyError(err: { message?: string; code?: string; details?: string }): SchemaStatus {
+  const msg = (err.message || "").toLowerCase();
+  const code = err.code || "";
+  // RLS / permission denied
+  if (msg.includes("permission denied") || msg.includes("policy") || code === "42501") return "rls_error";
+  // Column missing
+  if (msg.includes("column") || code === "42703" || code === "PGRST204") return "missing_columns";
+  // Connection / config
+  if (msg.includes("fetch") || msg.includes("network") || msg.includes("url")) return "conn_error";
+  return "missing_columns"; // default assumption
+}
+
 export default function PasienPage() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [schemaStatus, setSchemaStatus] = useState<SchemaStatus>("checking");
+  const [copied, setCopied] = useState(false);
+
+  // ── Schema check on mount ──────────────────────────────────────────────────
+  useEffect(() => {
+    async function checkSchema() {
+      console.log("[pasien] Checking schema...");
+      const { error } = await supabase
+        .from("pasien")
+        .select("tanggal_lahir, jenis_kelamin, no_hp, alamat")
+        .limit(1);
+
+      if (!error) {
+        console.log("[pasien] Schema OK");
+        setSchemaStatus("ok");
+        return;
+      }
+
+      const status = classifyError(error);
+      console.error("[pasien] Schema check error:", error, "→ classified as:", status);
+      setSchemaStatus(status);
+    }
+
+    checkSchema();
+  }, []);
 
   const showToast = useCallback((type: "success" | "error", msg: string) => {
     setToast({ type, msg });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 6000);
   }, []);
 
   function touch(field: keyof FormState) {
     setTouched((t) => ({ ...t, [field]: true }));
-    const errs = validate({ ...form });
-    setErrors(errs);
+    setErrors(validate({ ...form }));
   }
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     const next = { ...form, [field]: value };
     setForm(next);
-    if (touched[field]) {
-      setErrors(validate(next));
-    }
+    if (touched[field]) setErrors(validate(next));
   }
 
   function handleHPChange(raw: string) {
-    const formatted = formatHP(raw);
-    updateField("no_hp", formatted);
+    updateField("no_hp", formatHP(raw));
+  }
+
+  async function handleCopySQL() {
+    try {
+      await navigator.clipboard.writeText(MIGRATION_SQL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select text
+    }
   }
 
   const keluhanFinal = form.keluhan === "Lainnya"
     ? form.keluhan_lainnya.trim()
     : form.keluhan;
 
-  const currentErrors = validate(form);
-  const isValid = Object.keys(currentErrors).length === 0;
-
   async function handleSubmit() {
-    // Touch all fields to show errors
+    // Block submit if schema not ready
+    if (schemaStatus === "missing_columns" || schemaStatus === "rls_error") {
+      showToast("error", "Kolom database belum siap. Jalankan SQL migration terlebih dahulu.");
+      return;
+    }
+
+    // Touch all fields
     const allTouched: Partial<Record<keyof FormState, boolean>> = {};
     (Object.keys(INITIAL_FORM) as (keyof FormState)[]).forEach((k) => { allTouched[k] = true; });
     setTouched(allTouched);
@@ -137,6 +192,7 @@ export default function PasienPage() {
 
     setLoading(true);
     try {
+      // 1. Get next antrian number
       const { data: lastData, error: seqError } = await supabase
         .from("pasien")
         .select("nomor_antrian")
@@ -145,16 +201,24 @@ export default function PasienPage() {
 
       if (seqError) {
         console.error("[pasien] seq error:", seqError);
-        showToast("error", `Gagal mengambil nomor antrian: ${seqError.message}`);
+        const status = classifyError(seqError);
+        if (status === "rls_error") {
+          showToast("error", "Akses ditolak database. Periksa RLS policy di Supabase.");
+        } else if (status === "conn_error") {
+          showToast("error", "Tidak bisa terhubung ke database. Periksa SUPABASE_URL di .env.local");
+        } else {
+          showToast("error", `Gagal ambil nomor antrian: ${seqError.message}`);
+        }
         return;
       }
 
       const nomorBaru = lastData && lastData.length > 0 ? lastData[0].nomor_antrian + 1 : 1;
 
+      // 2. Build full payload
       const payload = {
         nama: form.nama.trim(),
         keluhan: keluhanFinal,
-        tanggal_lahir: form.tanggal_lahir,
+        tanggal_lahir: form.tanggal_lahir || null,
         jenis_kelamin: form.jenis_kelamin,
         alamat: form.alamat.trim(),
         no_hp: form.no_hp.replace(/\D/g, ""),
@@ -165,17 +229,35 @@ export default function PasienPage() {
 
       console.log("[pasien] inserting:", payload);
 
+      // 3. Insert
       const { error } = await supabase.from("pasien").insert([payload]);
 
       if (error) {
         console.error("[pasien] insert error:", error);
-        showToast("error", `Gagal menyimpan: ${error.message}`);
+        const status = classifyError(error);
+
+        if (status === "missing_columns") {
+          setSchemaStatus("missing_columns");
+          showToast("error", "Kolom database tidak ditemukan. Jalankan SQL migration di Supabase Dashboard.");
+        } else if (status === "rls_error") {
+          setSchemaStatus("rls_error");
+          showToast("error", "Akses insert ditolak. Periksa RLS policy tabel 'pasien' di Supabase.");
+        } else if (status === "conn_error") {
+          showToast("error", "Tidak bisa terhubung ke Supabase. Periksa koneksi internet dan environment variable.");
+        } else {
+          showToast("error", `Gagal menyimpan: ${error.message}`);
+        }
       } else {
         showToast("success", `Pasien ${form.nama.trim()} berhasil didaftarkan! (Antrian #${nomorBaru})`);
         setForm(INITIAL_FORM);
         setErrors({});
         setTouched({});
+        // Re-check schema to confirm it's ok
+        setSchemaStatus("ok");
       }
+    } catch (err: any) {
+      console.error("[pasien] unexpected error:", err);
+      showToast("error", `Error tidak terduga: ${err?.message || "Cek console untuk detail."}`);
     } finally {
       setLoading(false);
     }
@@ -219,20 +301,31 @@ export default function PasienPage() {
           .form-full { grid-column: 1; }
           .keluhan-grid { grid-template-columns: repeat(2, 1fr); }
         }
-        /* Toast */
         .toast-bar {
           position: fixed; top: 20px; right: 20px; z-index: 9999;
-          border-radius: 12px; padding: 14px 18px; min-width: 280px; max-width: 380px;
+          border-radius: 12px; padding: 14px 18px; min-width: 280px; max-width: 400px;
           display: flex; align-items: flex-start; gap: 12px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
           animation: slideInRight 0.28s ease;
         }
         .toast-bar.success { background: #fff; border-left: 4px solid #10b981; }
         .toast-bar.error { background: #fff; border-left: 4px solid #ef4444; }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .sql-code {
+          background: #1e1d35; color: #c4b5fd; font-family: 'Courier New', monospace;
+          font-size: 12px; padding: 14px 16px; border-radius: 10px;
+          overflow-x: auto; white-space: pre; line-height: 1.7;
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+        .copy-btn {
+          display: flex; align-items: center; gap: 6px;
+          padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+          cursor: pointer; border: none; transition: all 0.18s; font-family: inherit;
+        }
       `}</style>
 
-      {/* Toast */}
+      {/* ── TOAST ── */}
       {toast && (
         <div className={`toast-bar ${toast.type}`}>
           {toast.type === "success"
@@ -246,8 +339,8 @@ export default function PasienPage() {
         </div>
       )}
 
-      {/* Page header */}
-      <div style={{ marginBottom: "28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+      {/* ── PAGE HEADER ── */}
+      <div style={{ marginBottom: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Registrasi Pasien</h1>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>Daftarkan pasien baru ke antrian</p>
@@ -263,6 +356,112 @@ export default function PasienPage() {
         </Link>
       </div>
 
+      {/* ── SCHEMA STATUS BANNERS ── */}
+      {schemaStatus === "checking" && (
+        <div style={{
+          background: "rgba(108,92,231,0.06)", border: "1px solid rgba(108,92,231,0.2)",
+          borderRadius: "12px", padding: "14px 18px", marginBottom: "20px",
+          display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "var(--accent)",
+        }}>
+          <span style={{ width: "14px", height: "14px", border: "2px solid rgba(108,92,231,0.3)", borderTopColor: "#6C5CE7", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block", flexShrink: 0 }} />
+          Memeriksa konfigurasi database...
+        </div>
+      )}
+
+      {(schemaStatus === "missing_columns" || schemaStatus === "rls_error") && (
+        <div style={{
+          background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.35)",
+          borderRadius: "16px", padding: "20px", marginBottom: "24px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(245,166,35,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <AlertTriangle size={16} color="#d97706" />
+            </div>
+            <div>
+              <p style={{ fontSize: "14px", fontWeight: 700, color: "#92400e", margin: 0 }}>
+                {schemaStatus === "rls_error"
+                  ? "Database Policy Belum Dikonfigurasi"
+                  : "Kolom Database Belum Tersedia"}
+              </p>
+              <p style={{ fontSize: "12px", color: "#b45309", margin: "2px 0 0" }}>
+                {schemaStatus === "rls_error"
+                  ? "RLS policy memblokir akses. Jalankan SQL berikut di Supabase Dashboard."
+                  : "Kolom tanggal_lahir, jenis_kelamin, no_hp, alamat belum ada di tabel pasien."}
+              </p>
+            </div>
+          </div>
+
+          <p style={{ fontSize: "12px", fontWeight: 600, color: "#92400e", margin: "0 0 8px" }}>
+            Jalankan SQL ini di: <strong>Supabase Dashboard → SQL Editor → New Query</strong>
+          </p>
+
+          <div className="sql-code">{schemaStatus === "rls_error" ? `-- Opsi 1: Nonaktifkan RLS (development)
+ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;
+
+-- Opsi 2: Tambah policy izin semua akses
+CREATE POLICY "allow_all" ON pasien FOR ALL USING (true) WITH CHECK (true);
+
+-- Juga jalankan ini jika kolom belum ada:
+${MIGRATION_SQL}` : MIGRATION_SQL}</div>
+
+          <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+            <button
+              className="copy-btn"
+              onClick={handleCopySQL}
+              style={{ background: copied ? "#10b981" : "rgba(245,166,35,0.15)", color: copied ? "#fff" : "#92400e", border: "1px solid " + (copied ? "#10b981" : "rgba(245,166,35,0.3)") }}
+            >
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? "Tersalin!" : "Salin SQL"}
+            </button>
+            <a
+              href="https://supabase.com/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, background: "rgba(245,166,35,0.15)", color: "#92400e", border: "1px solid rgba(245,166,35,0.3)", textDecoration: "none" }}
+            >
+              Buka Supabase Dashboard ↗
+            </a>
+            <button
+              className="copy-btn"
+              onClick={() => setSchemaStatus("checking")}
+              style={{ background: "transparent", color: "#b45309", border: "1px solid rgba(245,166,35,0.3)" }}
+            >
+              ↻ Cek ulang
+            </button>
+          </div>
+        </div>
+      )}
+
+      {schemaStatus === "conn_error" && (
+        <div style={{
+          background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)",
+          borderRadius: "12px", padding: "16px 18px", marginBottom: "20px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <AlertCircle size={16} color="#dc2626" />
+            <div>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: "#7f1d1d", margin: 0 }}>Tidak bisa terhubung ke Supabase</p>
+              <p style={{ fontSize: "12px", color: "#b91c1c", margin: "3px 0 0" }}>
+                Periksa <code style={{ background: "rgba(239,68,68,0.1)", padding: "1px 5px", borderRadius: "4px" }}>.env.local</code> — pastikan NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY sudah benar.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {schemaStatus === "ok" && (
+        <div style={{
+          background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)",
+          borderRadius: "10px", padding: "10px 16px", marginBottom: "20px",
+          display: "flex", alignItems: "center", gap: "8px", fontSize: "12px",
+          color: "#059669", fontWeight: 600,
+        }}>
+          <CheckCircle2 size={14} color="#10b981" />
+          Database terhubung dan siap digunakan
+        </div>
+      )}
+
+      {/* ── FORM ── */}
       <div style={{ maxWidth: "700px" }}>
         <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "28px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
           <div className="form-grid">
@@ -341,7 +540,7 @@ export default function PasienPage() {
             {/* Keluhan */}
             <div className="form-full">
               <label style={labelStyle}>Keluhan <Req /></label>
-              <div className={`keluhan-grid`} style={{ marginBottom: form.keluhan === "Lainnya" ? "10px" : "0" }}>
+              <div className="keluhan-grid" style={{ marginBottom: form.keluhan === "Lainnya" ? "10px" : "0" }}>
                 {KELUHAN_OPTIONS.map((opt) => (
                   <div
                     key={opt}
@@ -378,7 +577,7 @@ export default function PasienPage() {
               <button
                 className="submit-btn"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || schemaStatus === "checking" || schemaStatus === "conn_error"}
                 style={{
                   background: "var(--accent)", border: "none", borderRadius: "12px",
                   padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700,
@@ -391,6 +590,11 @@ export default function PasienPage() {
                     <span style={{ width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />
                     Mendaftarkan...
                   </>
+                ) : schemaStatus === "checking" ? (
+                  <>
+                    <span style={{ width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />
+                    Memeriksa database...
+                  </>
                 ) : (
                   <>
                     <UserPlus size={16} />
@@ -398,7 +602,6 @@ export default function PasienPage() {
                   </>
                 )}
               </button>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
 
           </div>
