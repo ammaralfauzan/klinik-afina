@@ -65,9 +65,9 @@ export default function PasienPage() {
         </div>
         <Link href="/pasien/daftar" style={{
           display: "inline-flex", alignItems: "center", gap: "7px",
-          background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
+          background: "var(--input-bg)", border: "1px solid var(--border-color)",
           borderRadius: "10px", padding: "9px 16px", fontSize: "13px",
-          color: "#7B61FF", fontWeight: 600, textDecoration: "none", transition: "all 0.2s",
+          color: "var(--accent)", fontWeight: 600, textDecoration: "none", transition: "all 0.2s",
         }}>
           <ClipboardList size={14} />
           Lihat Daftar Pasien →
@@ -129,7 +129,7 @@ export default function PasienPage() {
 
             {/* Submit */}
             <div className="form-full">
-              <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan} style={{ background: "linear-gradient(135deg, #7B61FF, #9B8AFF)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%" }}>
+              <button className="submit-btn" onClick={handleSubmit} disabled={loading || !form.nama || !form.keluhan || !form.no_hp || !form.alamat} style={{ background: "var(--accent)", border: "none", borderRadius: "12px", padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%" }}>
                 <UserPlus size={16} />
                 {loading ? "Mendaftarkan..." : "Daftarkan Pasien"}
               </button>

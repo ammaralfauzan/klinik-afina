@@ -2,13 +2,26 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List } from "lucide-react";
 import Image from "next/image";
 
-const navItems = [
+type NavItem = {
+  label: string;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  href: string;
+  subItems?: { label: string; href: string; icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }> }[];
+};
+
+const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Antrian", icon: ClipboardList, href: "/antrian" },
-  { label: "Pasien", icon: Users, href: "/pasien" },
+  {
+    label: "Pasien", icon: Users, href: "/pasien",
+    subItems: [
+      { label: "Registrasi Baru", href: "/pasien", icon: UserPlus },
+      { label: "Daftar Pasien", href: "/pasien/daftar", icon: List },
+    ],
+  },
   { label: "Laporan", icon: BarChart3, href: "/laporan" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ];
@@ -85,23 +98,70 @@ export default function Sidebar() {
         <nav style={{ flex: 1, padding: "14px 10px", display: "flex", flexDirection: "column", gap: "2px" }}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const hasSubItems = !!item.subItems;
+            const isGroupActive = hasSubItems
+              ? pathname.startsWith(item.href)
+              : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const isSettings = item.href === "/pengaturan";
+
             return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`nav-link ${isActive ? "nav-link-active" : ""}`}
-                style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: isActive ? 600 : 400 }}
-              >
-                <span className={isSettings ? "nav-icon-settings" : ""} style={{ display: "flex", flexShrink: 0 }}>
-                  <Icon size={16} color={isActive ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth={isActive ? 2 : 1.5} />
-                </span>
-                <span>{item.label}</span>
-                {isActive && (
-                  <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#F5A623" }} />
+              <div key={item.label}>
+                {hasSubItems ? (
+                  /* Parent item with sub-items: not a link, just a label */
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "10px 14px", borderRadius: "10px",
+                    color: isGroupActive ? "#fff" : "rgba(255,255,255,0.55)",
+                    fontWeight: isGroupActive ? 600 : 400, fontSize: "13px",
+                    marginBottom: "2px",
+                  }}>
+                    <span style={{ display: "flex", flexShrink: 0 }}>
+                      <Icon size={16} color={isGroupActive ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth={isGroupActive ? 2 : 1.5} />
+                    </span>
+                    <span>{item.label}</span>
+                    {isGroupActive && (
+                      <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#F5A623" }} />
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`nav-link ${isGroupActive ? "nav-link-active" : ""}`}
+                    style={{ color: isGroupActive ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: isGroupActive ? 600 : 400 }}
+                  >
+                    <span className={isSettings ? "nav-icon-settings" : ""} style={{ display: "flex", flexShrink: 0 }}>
+                      <Icon size={16} color={isGroupActive ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth={isGroupActive ? 2 : 1.5} />
+                    </span>
+                    <span>{item.label}</span>
+                    {isGroupActive && (
+                      <div style={{ marginLeft: "auto", width: "6px", height: "6px", borderRadius: "50%", background: "#F5A623" }} />
+                    )}
+                  </Link>
                 )}
-              </Link>
+
+                {/* Sub-items */}
+                {hasSubItems && (
+                  <div style={{ paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "1px", marginBottom: "4px" }}>
+                    <div style={{ borderLeft: "1.5px solid rgba(255,255,255,0.12)", paddingLeft: "14px", display: "flex", flexDirection: "column", gap: "1px" }}>
+                      {item.subItems!.map((sub) => {
+                        const SubIcon = sub.icon;
+                        const isSubActive = pathname === sub.href;
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            className={`nav-link ${isSubActive ? "nav-link-active" : ""}`}
+                            style={{ color: isSubActive ? "#fff" : "rgba(255,255,255,0.45)", fontWeight: isSubActive ? 600 : 400, fontSize: "12px", padding: "8px 12px" }}
+                          >
+                            <SubIcon size={13} color={isSubActive ? "#fff" : "rgba(255,255,255,0.4)"} strokeWidth={isSubActive ? 2 : 1.5} />
+                            <span>{sub.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -142,9 +202,12 @@ export default function Sidebar() {
       <nav className="mobile-bottomnav">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const href = item.subItems ? item.subItems[0].href : item.href;
+          const isActive = item.subItems
+            ? pathname.startsWith(item.href)
+            : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
-            <Link key={item.label} href={item.href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
+            <Link key={item.label} href={href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
               <Icon size={22} color={isActive ? "#fff" : "rgba(255,255,255,0.4)"} strokeWidth={isActive ? 2 : 1.5} />
               <span style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.4)" }}>{item.label}</span>
             </Link>
