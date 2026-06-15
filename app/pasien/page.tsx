@@ -1,8 +1,8 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
-import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check } from "lucide-react";
+import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown } from "lucide-react";
 
 const KELUHAN_OPTIONS = [
   "Demam",
@@ -43,10 +43,20 @@ const INITIAL_FORM: FormState = {
   keluhan_lainnya: "",
 };
 
-const MIGRATION_SQL = `ALTER TABLE pasien ADD COLUMN IF NOT EXISTS tanggal_lahir DATE;
+const MIGRATION_SQL = `-- 1. Tambah kolom yang dibutuhkan
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS tanggal_lahir DATE;
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS jenis_kelamin TEXT DEFAULT 'Laki-laki';
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS alamat TEXT DEFAULT '';
-ALTER TABLE pasien ADD COLUMN IF NOT EXISTS no_hp TEXT DEFAULT '';`;
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS no_hp TEXT DEFAULT '';
+
+-- 2. Disable RLS (untuk demo/development)
+ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;`;
+
+const RLS_SQL = `-- Disable RLS agar data bisa masuk (demo/development)
+ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;
+
+-- Atau tambah policy yang mengizinkan semua operasi:
+-- CREATE POLICY "allow_all" ON pasien FOR ALL USING (true) WITH CHECK (true);`;
 
 function formatHP(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 13);
@@ -97,15 +107,22 @@ function validate(form: FormState): Errors {
 }
 
 // Classify Supabase error into actionable category
-function classifyError(err: { message?: string; code?: string; details?: string }): SchemaStatus {
+function classifyError(err: { message?: string; code?: string; details?: string; hint?: string }): SchemaStatus {
   const msg = (err.message || "").toLowerCase();
+  const details = (err.details || "").toLowerCase();
   const code = err.code || "";
-  // RLS / permission denied
-  if (msg.includes("permission denied") || msg.includes("policy") || code === "42501") return "rls_error";
+  // RLS / permission denied — Supabase returns 42501 or "violates row-level security policy"
+  if (
+    code === "42501" ||
+    msg.includes("permission denied") ||
+    msg.includes("row-level security") ||
+    msg.includes("policy") ||
+    details.includes("row-level security")
+  ) return "rls_error";
   // Column missing
   if (msg.includes("column") || code === "42703" || code === "PGRST204") return "missing_columns";
   // Connection / config
-  if (msg.includes("fetch") || msg.includes("network") || msg.includes("url")) return "conn_error";
+  if (msg.includes("fetch") || msg.includes("network") || msg.includes("invalid api") || !process.env.NEXT_PUBLIC_SUPABASE_URL) return "conn_error";
   return "missing_columns"; // default assumption
 }
 
@@ -117,6 +134,9 @@ export default function PasienPage() {
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [schemaStatus, setSchemaStatus] = useState<SchemaStatus>("checking");
   const [copied, setCopied] = useState(false);
+  const [copiedRLS, setCopiedRLS] = useState(false);
+  const [jenisOpen, setJenisOpen] = useState(false);
+  const jenisRef = useRef<HTMLDivElement>(null);
 
   // ── Schema check on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -139,6 +159,17 @@ export default function PasienPage() {
     }
 
     checkSchema();
+  }, []);
+
+  // Close jenis kelamin dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (jenisRef.current && !jenisRef.current.contains(e.target as Node)) {
+        setJenisOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   const showToast = useCallback((type: "success" | "error", msg: string) => {
@@ -166,9 +197,15 @@ export default function PasienPage() {
       await navigator.clipboard.writeText(MIGRATION_SQL);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback: select text
-    }
+    } catch { /* clipboard not available */ }
+  }
+
+  async function handleCopyRLS() {
+    try {
+      await navigator.clipboard.writeText(RLS_SQL);
+      setCopiedRLS(true);
+      setTimeout(() => setCopiedRLS(false), 2000);
+    } catch { /* clipboard not available */ }
   }
 
   const keluhanFinal = form.keluhan === "Lainnya"
@@ -323,6 +360,41 @@ export default function PasienPage() {
           padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
           cursor: pointer; border: none; transition: all 0.18s; font-family: inherit;
         }
+        /* Custom dropdown */
+        .jenis-trigger {
+          width: 100%; background: var(--input-bg, #F0EFFF);
+          border: 1px solid var(--border-color); border-radius: 10px;
+          padding: 11px 14px; font-size: 13px; color: var(--text-primary);
+          outline: none; transition: border 0.2s, background 0.2s;
+          box-sizing: border-box; font-family: inherit; cursor: pointer;
+          display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          text-align: left;
+        }
+        .jenis-trigger:hover, .jenis-trigger.open {
+          border-color: var(--accent); background: var(--bg-card);
+        }
+        .jenis-menu {
+          position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 100;
+          background: var(--bg-card); border: 1px solid var(--border-color);
+          border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+          overflow: hidden;
+          animation: dropIn 0.16s cubic-bezier(0.22,1,0.36,1);
+        }
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .jenis-option {
+          display: flex; align-items: center; gap: 10px;
+          padding: 11px 14px; font-size: 13px; cursor: pointer;
+          color: var(--text-primary); transition: background 0.12s;
+          font-weight: 500;
+        }
+        .jenis-option:hover { background: var(--input-bg); }
+        .jenis-option.selected {
+          background: rgba(108,92,231,0.08); color: var(--accent); font-weight: 700;
+        }
+        .jenis-option + .jenis-option { border-top: 1px solid var(--border-color); }
       `}</style>
 
       {/* ── TOAST ── */}
@@ -395,23 +467,20 @@ export default function PasienPage() {
             Jalankan SQL ini di: <strong>Supabase Dashboard → SQL Editor → New Query</strong>
           </p>
 
-          <div className="sql-code">{schemaStatus === "rls_error" ? `-- Opsi 1: Nonaktifkan RLS (development)
-ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;
-
--- Opsi 2: Tambah policy izin semua akses
-CREATE POLICY "allow_all" ON pasien FOR ALL USING (true) WITH CHECK (true);
-
--- Juga jalankan ini jika kolom belum ada:
-${MIGRATION_SQL}` : MIGRATION_SQL}</div>
+          <div className="sql-code">{schemaStatus === "rls_error" ? RLS_SQL : MIGRATION_SQL}</div>
 
           <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
             <button
               className="copy-btn"
-              onClick={handleCopySQL}
-              style={{ background: copied ? "#10b981" : "rgba(245,166,35,0.15)", color: copied ? "#fff" : "#92400e", border: "1px solid " + (copied ? "#10b981" : "rgba(245,166,35,0.3)") }}
+              onClick={schemaStatus === "rls_error" ? handleCopyRLS : handleCopySQL}
+              style={{
+                background: (schemaStatus === "rls_error" ? copiedRLS : copied) ? "#10b981" : "rgba(245,166,35,0.15)",
+                color: (schemaStatus === "rls_error" ? copiedRLS : copied) ? "#fff" : "#92400e",
+                border: "1px solid " + ((schemaStatus === "rls_error" ? copiedRLS : copied) ? "#10b981" : "rgba(245,166,35,0.3)"),
+              }}
             >
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? "Tersalin!" : "Salin SQL"}
+              {(schemaStatus === "rls_error" ? copiedRLS : copied) ? <Check size={13} /> : <Copy size={13} />}
+              {(schemaStatus === "rls_error" ? copiedRLS : copied) ? "Tersalin!" : "Salin SQL"}
             </button>
             <a
               href="https://supabase.com/dashboard"
@@ -493,18 +562,50 @@ ${MIGRATION_SQL}` : MIGRATION_SQL}</div>
               <FieldError msg={touched.tanggal_lahir ? errors.tanggal_lahir : undefined} />
             </div>
 
-            {/* Jenis Kelamin */}
+            {/* Jenis Kelamin — custom dropdown */}
             <div>
               <label style={labelStyle}>Jenis Kelamin</label>
-              <select
-                className="form-input"
-                value={form.jenis_kelamin}
-                onChange={(e) => updateField("jenis_kelamin", e.target.value)}
-                style={{ background: "var(--bg-card)", color: "var(--text-primary)", cursor: "pointer" }}
-              >
-                <option value="Laki-laki">Laki-laki</option>
-                <option value="Perempuan">Perempuan</option>
-              </select>
+              <div ref={jenisRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className={`jenis-trigger${jenisOpen ? " open" : ""}`}
+                  onClick={() => setJenisOpen(o => !o)}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px" }}>{form.jenis_kelamin === "Perempuan" ? "👩" : "👨"}</span>
+                    <span>{form.jenis_kelamin}</span>
+                  </span>
+                  <ChevronDown
+                    size={15}
+                    color="var(--text-secondary)"
+                    style={{ transition: "transform 0.18s", transform: jenisOpen ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+                  />
+                </button>
+
+                {jenisOpen && (
+                  <div className="jenis-menu">
+                    {[
+                      { value: "Laki-laki", emoji: "👨" },
+                      { value: "Perempuan", emoji: "👩" },
+                    ].map(({ value, emoji }) => (
+                      <div
+                        key={value}
+                        className={`jenis-option${form.jenis_kelamin === value ? " selected" : ""}`}
+                        onClick={() => {
+                          updateField("jenis_kelamin", value);
+                          setJenisOpen(false);
+                        }}
+                      >
+                        <span style={{ fontSize: "16px" }}>{emoji}</span>
+                        <span>{value}</span>
+                        {form.jenis_kelamin === value && (
+                          <Check size={13} color="var(--accent)" style={{ marginLeft: "auto" }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* No HP */}
