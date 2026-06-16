@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
+import { getTodayRange } from "../../lib/utils";
 import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle, X } from "lucide-react";
 
 type Pasien = {
@@ -15,18 +16,12 @@ const MIGRATION_SQL = `-- Jalankan di Supabase Dashboard → SQL Editor
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS biaya INTEGER DEFAULT 0;
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS status_bayar TEXT DEFAULT 'Belum Bayar';`;
 
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 function fmtRupiah(n: number) { return "Rp " + n.toLocaleString("id-ID"); }
 
 export default function KasirPage() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
+  const [loading, setLoading] = useState(true);
   const [colsOk, setColsOk] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState<number | null>(null); // nomor_antrian being saved
@@ -50,6 +45,7 @@ export default function KasirPage() {
       setColsOk(true);
       if (data) setPasienList(data);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -138,6 +134,8 @@ export default function KasirPage() {
   return (
     <div>
       <style>{`
+        @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+        .skeleton { background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-main) 50%, var(--border-color) 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; border-radius: 8px; }
         .kasir-row:hover { background: var(--table-hover) !important; }
         .k-btn { transition: all 0.18s; cursor: pointer; }
         .k-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
@@ -219,6 +217,20 @@ export default function KasirPage() {
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0", textTransform: "capitalize" }}>{todayStr}</p>
       </div>
 
+      {/* Skeleton while loading */}
+      {loading && (
+        <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", padding: "20px", boxShadow: "var(--shadow)" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ display: "flex", gap: "16px", padding: "14px 0", borderBottom: "1px solid var(--border-color)" }}>
+              <div className="skeleton" style={{ width: "40px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "140px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "100px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "120px", height: "32px", marginLeft: "auto" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Migration banner */}
       {colsOk === false && (
         <div style={{ background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.35)", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
@@ -240,7 +252,7 @@ export default function KasirPage() {
       )}
 
       {/* Summary cards */}
-      {colsOk && (
+      {!loading && colsOk && (
         <div data-tour="kasir-summary" className="kasir-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "24px" }}>
           {[
             { label: "Pasien Hari Ini", val: totalPasien, color: "#7B61FF", icon: CreditCard },

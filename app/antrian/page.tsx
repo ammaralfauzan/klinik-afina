@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
+import { getTodayRange } from "../../lib/utils";
 import { PhoneCall, CheckCircle2, Clock, Users, Tv2, MessageCircle, UserX, Search } from "lucide-react";
 import { useAudio } from "../components/AudioNotif";
 import Toast from "../components/Toast";
@@ -9,13 +10,6 @@ type Pasien = {
   nama: string; keluhan: string; status: string;
   nomor_antrian: number; no_hp?: string; created_at?: string;
 };
-
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 
@@ -36,6 +30,7 @@ function buildWALink(p: Pasien, action: "panggil" | "selesai"): string {
 
 export default function AntrianPage() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [searchQ, setSearchQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
@@ -55,6 +50,7 @@ export default function AntrianPage() {
       .lte("created_at", end)
       .order("nomor_antrian", { ascending: true });
     if (data) setPasienList(data);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -125,6 +121,8 @@ export default function AntrianPage() {
       <Toast message={toast.message} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
 
       <style>{`
+        @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+        .skeleton { background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-main) 50%, var(--border-color) 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; border-radius: 8px; }
         .action-btn { transition: all 0.18s; cursor: pointer; }
         .action-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .table-row:hover { background: var(--table-hover) !important; }
@@ -184,8 +182,22 @@ export default function AntrianPage() {
         ))}
       </div>
 
+      {/* Skeleton while loading */}
+      {loading && (
+        <div style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", padding: "20px", boxShadow: "var(--shadow)" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ display: "flex", gap: "16px", padding: "14px 0", borderBottom: "1px solid var(--border-color)" }}>
+              <div className="skeleton" style={{ width: "40px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "140px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "100px", height: "20px" }} />
+              <div className="skeleton" style={{ width: "80px", height: "20px", marginLeft: "auto" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Table */}
-      <div data-tour="antrian-table" style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
+      <div data-tour="antrian-table" style={{ background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border-color)", overflow: "hidden", boxShadow: "var(--shadow)", display: loading ? "none" : undefined }}>
         <div className="table-wrapper">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>

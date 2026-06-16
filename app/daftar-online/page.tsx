@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { getTodayRange } from "../../lib/utils";
 import { CheckCircle, Clock, Users, ChevronRight, Phone, User, Calendar, AlertCircle, Share2 } from "lucide-react";
 
 const KELUHAN_CHIPS = [
@@ -12,12 +13,6 @@ const KELUHAN_CHIPS = [
 
 type Step = "form" | "submitting" | "success";
 
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 
 export default function DaftarOnlinePage() {

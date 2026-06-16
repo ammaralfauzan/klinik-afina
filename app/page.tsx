@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { getTodayRange } from "../lib/utils";
 import { Users, Clock, Stethoscope, CheckCircle, User, TrendingUp, Wallet } from "lucide-react";
 import { useAudio } from "./components/AudioNotif";
 import Toast from "./components/Toast";
@@ -13,17 +14,11 @@ type Pasien = {
   biaya?: number; status_bayar?: string; created_at: string;
 };
 
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 
 export default function Home() {
   const [pasienList, setPasienList] = useState<Pasien[]>([]);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [weekData, setWeekData] = useState<{ day: string; count: number }[]>([]);
   const [dokterHariIni, setDokterHariIni] = useState("");
@@ -35,6 +30,7 @@ export default function Home() {
       .gte("created_at", start).lte("created_at", end)
       .order("nomor_antrian", { ascending: true });
     if (data) setPasienList(data);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -107,6 +103,8 @@ export default function Home() {
 
       <style>{`
         @keyframes icon-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+        .skeleton { background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-main) 50%, var(--border-color) 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; border-radius: 8px; }
         .stat-icon { animation: icon-pulse 2.5s ease-in-out infinite; }
         .table-row:hover { background: var(--table-hover) !important; }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -153,7 +151,19 @@ export default function Home() {
         )}
       </div>
 
-      <div data-tour="dashboard-stats" className="stats-grid">
+      {loading ? (
+        <div className="stats-grid" style={{ marginBottom: "24px" }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "18px", border: "1px solid var(--border-color)" }}>
+              <div className="skeleton" style={{ width: "38px", height: "38px", borderRadius: "10px", marginBottom: "12px" }} />
+              <div className="skeleton" style={{ width: "60px", height: "28px", marginBottom: "8px" }} />
+              <div className="skeleton" style={{ width: "100px", height: "12px" }} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div data-tour="dashboard-stats" className="stats-grid" style={loading ? { display: "none" } : {}}>
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (

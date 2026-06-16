@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
+import { getTodayRange } from "../../lib/utils";
 import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer } from "lucide-react";
 
 const KELUHAN_OPTIONS = [
@@ -63,13 +64,6 @@ ALTER TABLE pasien DISABLE ROW LEVEL SECURITY;
 
 -- Atau tambah policy yang mengizinkan semua operasi:
 -- CREATE POLICY "allow_all" ON pasien FOR ALL USING (true) WITH CHECK (true);`;
-
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 

@@ -17,13 +17,14 @@ type Pasien = {
   biaya?: number; status_bayar?: string;
 };
 
-type Periode = "hari" | "minggu" | "bulan" | "tahun";
+type Periode = "hari" | "minggu" | "bulan" | "tahun" | "custom";
 
 const PERIODE_LABELS: Record<Periode, string> = {
   hari: "Hari Ini",
   minggu: "Minggu Ini",
   bulan: "Bulan Ini",
   tahun: "Tahun Ini",
+  custom: "Custom",
 };
 
 const BULAN_ID = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"];
@@ -48,7 +49,16 @@ function startOf(periode: Periode): Date {
   return new Date(now.getFullYear(), 0, 1);
 }
 
-function filterByPeriode(list: Pasien[], periode: Periode): Pasien[] {
+function filterByPeriode(list: Pasien[], periode: Periode, customStart?: string, customEnd?: string): Pasien[] {
+  if (periode === "custom" && customStart && customEnd) {
+    const start = new Date(customStart);
+    const end = new Date(customEnd);
+    end.setHours(23, 59, 59, 999);
+    return list.filter((p) => {
+      const d = new Date(p.created_at);
+      return d >= start && d <= end;
+    });
+  }
   const start = startOf(periode);
   const now = new Date();
   return list.filter((p) => {
@@ -57,7 +67,27 @@ function filterByPeriode(list: Pasien[], periode: Periode): Pasien[] {
   });
 }
 
-function buildChartData(list: Pasien[], periode: Periode) {
+function buildChartData(list: Pasien[], periode: Periode, customStart?: string, customEnd?: string) {
+  if (periode === "custom" && customStart && customEnd) {
+    const start = new Date(customStart);
+    const end = new Date(customEnd);
+    end.setHours(23, 59, 59, 999);
+    const days: { label: string; value: number }[] = [];
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dayStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate());
+      const dayEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999);
+      days.push({
+        label: cur.toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
+        value: list.filter((p) => {
+          const t = new Date(p.created_at).getTime();
+          return t >= dayStart.getTime() && t <= dayEnd.getTime();
+        }).length,
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  }
   if (periode === "hari") {
     return JAM_RANGE.map((jam) => ({
       label: `${String(jam).padStart(2, "0")}:00`,
@@ -123,16 +153,16 @@ function keluhanTerbanyak(list: Pasien[]): string {
   return Object.entries(map).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
 }
 
-// Custom tooltip for recharts
+// Custom tooltip for recharts — uses CSS variables for dark mode support
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "10px",
-      padding: "10px 14px", boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+      background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "10px",
+      padding: "10px 14px", boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
     }}>
-      <p style={{ fontSize: "12px", color: "#8B8FA8", margin: "0 0 4px" }}>{label}</p>
-      <p style={{ fontSize: "15px", fontWeight: 700, color: "#6C5CE7", margin: 0 }}>
+      <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 4px" }}>{label}</p>
+      <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--accent)", margin: 0 }}>
         {payload[0].value} pasien
       </p>
     </div>
@@ -143,14 +173,20 @@ export default function LaporanPage() {
   const [allPasien, setAllPasien] = useState<Pasien[]>([]);
   const [loading, setLoading] = useState(true);
   const [periode, setPeriode] = useState<Periode>("hari");
+  const today = new Date().toISOString().split("T")[0];
+  const [customStart, setCustomStart] = useState(today);
+  const [customEnd, setCustomEnd] = useState(today);
 
   useEffect(() => {
-    supabase.from("pasien").select("*").order("created_at", { ascending: true })
+    // Fetch only current year — covers all period filters (hari/minggu/bulan/tahun)
+    const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString();
+    supabase.from("pasien").select("*").gte("created_at", yearStart)
+      .order("created_at", { ascending: true })
       .then(({ data }) => { if (data) setAllPasien(data); setLoading(false); });
   }, []);
 
-  const filtered = useMemo(() => filterByPeriode(allPasien, periode), [allPasien, periode]);
-  const chartData = useMemo(() => buildChartData(filtered, periode), [filtered, periode]);
+  const filtered = useMemo(() => filterByPeriode(allPasien, periode, customStart, customEnd), [allPasien, periode, customStart, customEnd]);
+  const chartData = useMemo(() => buildChartData(filtered, periode, customStart, customEnd), [filtered, periode, customStart, customEnd]);
 
   const total = filtered.length;
   const selesai = filtered.filter(p => p.status === "Selesai").length;
@@ -252,7 +288,7 @@ export default function LaporanPage() {
         <div className="print-header" style={{ marginBottom: "24px", textAlign: "center", borderBottom: "2px solid #6C5CE7", paddingBottom: "16px" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 4px" }}>Klinik & RB Afina — Laporan Klinik</h1>
           <p style={{ fontSize: "12px", color: "#8B8FA8", margin: 0 }}>
-            {PERIODE_LABELS[periode]} · Dicetak: {new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            {periode === "custom" ? `${customStart} – ${customEnd}` : PERIODE_LABELS[periode]} · Dicetak: {new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
 
@@ -279,7 +315,7 @@ export default function LaporanPage() {
         </div>
 
         {/* PERIODE FILTER */}
-        <div className="no-print" style={{ display: "flex", gap: "6px", marginBottom: "24px", flexWrap: "wrap" }}>
+        <div className="no-print" style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "6px", background: "var(--bg-card)", padding: "5px", borderRadius: "12px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)" }}>
             {(Object.keys(PERIODE_LABELS) as Periode[]).map((p) => (
               <button
@@ -291,6 +327,26 @@ export default function LaporanPage() {
               </button>
             ))}
           </div>
+          {periode === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-card)", padding: "6px 12px", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd}
+                onChange={(e) => setCustomStart(e.target.value)}
+                style={{ border: "none", background: "transparent", color: "var(--text-primary)", fontSize: "13px", outline: "none", fontFamily: "inherit" }}
+              />
+              <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>—</span>
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart}
+                max={today}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                style={{ border: "none", background: "transparent", color: "var(--text-primary)", fontSize: "13px", outline: "none", fontFamily: "inherit" }}
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -353,6 +409,7 @@ export default function LaporanPage() {
                       {periode === "minggu" && "Per hari (Senin–Minggu)"}
                       {periode === "bulan" && "Per tanggal"}
                       {periode === "tahun" && "Per bulan (Jan–Des)"}
+                      {periode === "custom" && `${customStart} – ${customEnd}`}
                     </p>
                   </div>
                 </div>

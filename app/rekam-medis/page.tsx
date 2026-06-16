@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
+import { getTodayRange } from "../../lib/utils";
 import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope, Printer } from "lucide-react";
 
 type Pasien = {
@@ -47,13 +48,6 @@ CREATE TABLE IF NOT EXISTS rekam_medis (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE rekam_medis DISABLE ROW LEVEL SECURITY;`;
-
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString(), date: start.toISOString().split("T")[0] };
-}
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 

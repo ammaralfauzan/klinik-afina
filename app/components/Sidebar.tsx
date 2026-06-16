@@ -5,6 +5,7 @@ import { useTheme } from "./ThemeProvider";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List, FileText, CreditCard } from "lucide-react";
 import { SidebarTourButton } from "./AppTour";
 import Image from "next/image";
+import { supabase } from "../../lib/supabase";
 
 type NavItem = {
   label: string;
@@ -34,7 +35,8 @@ export default function Sidebar() {
   const { dark } = useTheme();
   const router = useRouter();
 
-  function handleLogout() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
     document.cookie = "isLoggedIn=; path=/; max-age=0";
     localStorage.removeItem("isLoggedIn");
     router.push("/login");

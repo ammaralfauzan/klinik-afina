@@ -56,3 +56,32 @@ ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_rm TEXT DEFAULT '';
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS jenis_pembayaran TEXT DEFAULT 'Umum';
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_bpjs TEXT DEFAULT '';
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nama_asuransi TEXT DEFAULT '';
+
+-- ============================================================
+-- LANGKAH 7: Aktifkan RLS (Row Level Security) — PRODUCTION
+-- Jalankan ini setelah membuat user di Supabase Auth Dashboard
+-- ============================================================
+
+-- Aktifkan RLS pada tabel pasien
+ALTER TABLE pasien ENABLE ROW LEVEL SECURITY;
+
+-- Policy: user yang sudah login bisa baca/tulis semua data pasien
+CREATE POLICY IF NOT EXISTS "authenticated_all_pasien"
+  ON pasien FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Aktifkan RLS pada tabel rekam_medis
+ALTER TABLE rekam_medis ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "authenticated_all_rekam_medis"
+  ON rekam_medis FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Aktifkan RLS pada tabel pengaturan (jika ada)
+-- ALTER TABLE pengaturan ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY IF NOT EXISTS "authenticated_all_pengaturan"
+--   ON pengaturan FOR ALL TO authenticated USING (true) WITH CHECK (true);

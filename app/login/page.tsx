@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,8 +16,8 @@ export default function LoginPage() {
   async function handleLogin() {
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
-    if (email === "admin@klinik-afina.com" && password === "admin123") {
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (!authError) {
       document.cookie = "isLoggedIn=true; path=/; max-age=86400";
       localStorage.setItem("isLoggedIn", "true");
       router.push("/");

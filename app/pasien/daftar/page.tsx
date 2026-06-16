@@ -13,6 +13,7 @@ type PasienRecord = {
   keluhan: string;
   status: string;
   tanggal_lahir?: string;
+  nomor_rm?: string;
   created_at: string;
 };
 
@@ -45,11 +46,14 @@ export default function DaftarPasienPage() {
     fetchPasien();
   }, []);
 
-  // Group records into unique patients by nama (case-insensitive)
+  // Group records into unique patients — prefer nomor_rm, then no_hp, fallback to nama
   const uniquePatients = useMemo<UniquePatient[]>(() => {
     const map = new Map<string, UniquePatient>();
     records.forEach((r) => {
-      const key = r.nama.trim().toLowerCase();
+      const hp = r.no_hp?.trim().replace(/\D/g, "");
+      const key = (r.nomor_rm?.trim() && r.nomor_rm.trim())
+        || (hp && hp.length >= 6 ? hp : "")
+        || r.nama.trim().toLowerCase();
       if (!map.has(key)) {
         map.set(key, {
           nama: r.nama,
