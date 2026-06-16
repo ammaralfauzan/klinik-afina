@@ -61,37 +61,63 @@ export default function Sidebar() {
           background: #F5A623; border-radius: 0 3px 3px 0;
         }
         .desktop-sidebar { display: flex; width: 230px; min-height: 100vh; flex-shrink: 0; }
-        .mobile-bottomnav { display: none; }
+        .mobile-bottomnav-wrap { display: none; }
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
+
+          /* Wrapper: fixed bar + right-fade gradient hint */
+          .mobile-bottomnav-wrap {
+            display: block;
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+          }
+          .mobile-bottomnav-wrap::after {
+            content: '';
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: 48px;
+            background: linear-gradient(to right, transparent, #3D3478 90%);
+            pointer-events: none;
+          }
+
+          /* Scrollable nav row */
           .mobile-bottomnav {
             display: flex;
-            position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
             background: #3D3478;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
-            align-items: center;
-            justify-content: space-between;
-            gap: 2px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+            gap: 6px;
           }
+          .mobile-bottomnav::-webkit-scrollbar { display: none; }
+
+          /* Each nav item: fixed 76px so 4 fit cleanly + 5th peeks */
           .mobile-nav-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 4px;
-            flex: 1;
-            padding: 7px 4px;
-            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex-shrink: 0;
+            width: 76px;
+            padding: 8px 6px;
+            border-radius: 14px;
             text-decoration: none;
-            transition: background 0.18s;
-            min-width: 0;
+            transition: background 0.2s;
           }
           .mobile-nav-item span {
-            font-size: 9px; font-weight: 600;
+            font-size: 10px;
+            font-weight: 600;
             color: rgba(255,255,255,0.45);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            max-width: 100%;
+            white-space: nowrap;
             display: block;
+            text-align: center;
           }
-          .mobile-nav-active { background: rgba(255,255,255,0.13); }
+          .mobile-nav-active {
+            background: rgba(255,255,255,0.12);
+          }
           .mobile-nav-active span { color: #fff; }
         }
       `}</style>
@@ -220,22 +246,24 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav className="mobile-bottomnav">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const href = item.subItems ? item.subItems[0].href : item.href;
-          const isActive = item.subItems
-            ? pathname.startsWith(item.href)
-            : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link key={item.label} href={href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
-              <Icon size={22} color={isActive ? "#fff" : "rgba(255,255,255,0.4)"} strokeWidth={isActive ? 2 : 1.5} />
-              <span style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.4)" }}>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      {/* MOBILE BOTTOM NAV — 4 item terlihat, sisanya scroll kanan */}
+      <div className="mobile-bottomnav-wrap">
+        <nav className="mobile-bottomnav">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const href = item.subItems ? item.subItems[0].href : item.href;
+            const isActive = item.subItems
+              ? pathname.startsWith(item.href)
+              : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link key={item.label} href={href} className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}>
+                <Icon size={21} color={isActive ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth={isActive ? 2.2 : 1.5} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 }
