@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { X, ChevronRight, ChevronLeft, Play, CheckCircle2, Map } from "lucide-react";
 
@@ -177,15 +177,18 @@ function TourTooltip({
   const GAP = 12;
   const MARGIN = 12;
 
-  let style: React.CSSProperties = {};
+  // Pisahkan positionStyle (layout) dari animationStyle (transform animasi)
+  // agar transform centering tidak di-override oleh keyframe tourSlideIn
+  let positionStyle: React.CSSProperties = {};
   let arrowStyle: React.CSSProperties = { display: "none" };
 
   if (isCenter || !rect) {
-    style = {
+    positionStyle = {
       position: "fixed",
       top: "50%", left: "50%",
       transform: "translate(-50%, -50%)",
       zIndex: 10002,
+      width: TOOLTIP_W,
     };
   } else {
     // Pada layar sempit, ubah left/right → bottom agar tidak off-screen
@@ -200,7 +203,6 @@ function TourTooltip({
     if (pos === "bottom") {
       top = rect.bottom + GAP;
       left = Math.max(MARGIN, Math.min(cx - TOOLTIP_W / 2, SCREEN_W - TOOLTIP_W - MARGIN));
-      // Clamp arrow agar tidak keluar tooltip
       const arrowLeft = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
       arrowStyle = { top: -8, left: arrowLeft, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderBottom: "8px solid var(--bg-card)" };
     } else if (pos === "top") {
@@ -220,19 +222,21 @@ function TourTooltip({
       arrowStyle = { top: arrowTop, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" };
     }
 
-    // Safety clamp — cegah keluar dari viewport
     top = Math.max(MARGIN, Math.min(top, SCREEN_H - TOOLTIP_H - MARGIN));
     left = Math.max(MARGIN, Math.min(left, SCREEN_W - TOOLTIP_W - MARGIN));
 
-    style = { position: "fixed", top, left, zIndex: 10002 };
+    positionStyle = { position: "fixed", top, left, zIndex: 10002, width: TOOLTIP_W };
   }
 
   return (
-    <div style={{ ...style, width: TOOLTIP_W, animation: "tourSlideIn 0.25s cubic-bezier(0.34,1.56,0.64,1)" }}>
-      {/* Arrow */}
-      {!isCenter && rect && (
-        <div style={{ position: "absolute", width: 0, height: 0, ...arrowStyle }} />
-      )}
+    // Outer div: hanya positioning (termasuk transform centering)
+    // Inner div: animasi slide-in — dipisah agar transform tidak bentrok
+    <div style={positionStyle}>
+      <div style={{ animation: "tourSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1)" }}>
+        {/* Arrow */}
+        {!isCenter && rect && (
+          <div style={{ position: "absolute", width: 0, height: 0, ...arrowStyle }} />
+        )}
 
       {/* Card */}
       <div style={{
@@ -303,67 +307,90 @@ function TourTooltip({
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
+// phase:
+//   "center"    → backdrop gelap + tooltip di tengah (welcome/finish/fallback)
+//   "loading"   → backdrop gelap + spinner (navigasi/cari elemen) — TANPA tooltip
+//   "spotlight" → spotlight muncul dulu, tooltip belum ada (delay ~0.8s)
+//   "ready"     → spotlight + tooltip muncul bersamaan
+type TourPhase = "center" | "loading" | "spotlight" | "ready";
+
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
+  const [phase, setPhase] = useState<TourPhase>("center");
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  // Ref untuk cancel stale spotlight→ready timer saat step berganti cepat
+  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const findTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentStep = STEPS[step];
 
-  // Try to find and highlight target element, with retry
-  const findTarget = useCallback(() => {
-    if (!currentStep.selector) { setTargetRect(null); return; }
-    setNotFound(false);
+  const clearTimers = useCallback(() => {
+    if (readyTimerRef.current) { clearTimeout(readyTimerRef.current); readyTimerRef.current = null; }
+    if (findTimerRef.current) { clearTimeout(findTimerRef.current); findTimerRef.current = null; }
+  }, []);
 
+  // Cari elemen target, scroll dulu, tunggu scroll settle, lalu spotlight → ready
+  const findTarget = useCallback((selector: string) => {
     const attempt = (tries: number) => {
-      const el = document.querySelector(currentStep.selector!);
+      const el = document.querySelector(selector);
       if (el) {
-        // Scroll ke elemen dengan offset untuk bottom nav
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setTimeout(() => {
+        // Tunggu scroll selesai → spotlight muncul dulu
+        findTimerRef.current = setTimeout(() => {
           const rect = el.getBoundingClientRect();
-          // Offset sedikit ke atas agar tidak tertutup bottom nav di mobile
           setTargetRect(rect);
-        }, 400);
+          setPhase("spotlight"); // highlight elemen, tooltip belum muncul
+          // Setelah 0.8s → tooltip slide-in (cancel timer lama dulu)
+          if (readyTimerRef.current) clearTimeout(readyTimerRef.current);
+          readyTimerRef.current = setTimeout(() => setPhase("ready"), 800);
+        }, 500);
       } else if (tries > 0) {
-        // Retry sekali lagi setelah 500ms (untuk halaman async Supabase)
-        setTimeout(() => attempt(tries - 1), 500);
+        findTimerRef.current = setTimeout(() => attempt(tries - 1), 500);
       } else {
-        // Elemen tidak ditemukan setelah semua retry → tampilkan tooltip di center
         setTargetRect(null);
-        setNotFound(true);
+        setPhase("center"); // fallback center jika elemen tidak ditemukan
       }
     };
+    attempt(2);
+  }, []);
 
-    attempt(2); // max 3 percobaan total
-  }, [currentStep.selector]);
-
-  // Saat step atau pathname berubah, cari target
+  // Saat step atau pathname berubah
   useEffect(() => {
     if (!active) return;
-    if (currentStep.position === "center") { setTargetRect(null); setNotFound(false); return; }
-    if (!currentStep.page || pathname === currentStep.page) {
-      const t = setTimeout(findTarget, 300);
-      return () => clearTimeout(t);
-    } else {
-      // Belum di halaman yang tepat, tunggu navigasi
-      setTargetRect(null);
-      setNotFound(false);
-    }
-  }, [active, step, pathname, findTarget, currentStep]);
+    clearTimers();
 
-  // Update rect saat scroll/resize
+    const isStaticCenter = currentStep.position === "center" || !currentStep.selector;
+    if (isStaticCenter) {
+      setTargetRect(null);
+      setPhase("center");
+      return;
+    }
+
+    const onCorrectPage = !currentStep.page || pathname === currentStep.page;
+    if (onCorrectPage) {
+      setPhase("loading");
+      setTargetRect(null);
+      findTimerRef.current = setTimeout(() => findTarget(currentStep.selector!), 250);
+    } else {
+      // Belum di halaman yang benar — loading sampai pathname cocok
+      setPhase("loading");
+      setTargetRect(null);
+    }
+  }, [active, step, pathname, findTarget, currentStep, clearTimers]);
+
+  // Update rect saat user scroll/resize (hanya saat spotlight atau ready)
   useEffect(() => {
-    if (!active || !currentStep.selector) return;
+    if (!active || (phase !== "ready" && phase !== "spotlight") || !currentStep.selector) return;
     const update = () => {
       const el = document.querySelector(currentStep.selector!);
       if (el) setTargetRect(el.getBoundingClientRect());
@@ -374,29 +401,34 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [active, currentStep.selector]);
+  }, [active, phase, currentStep.selector]);
 
   function startTour() {
+    clearTimers();
     setStep(0);
     setActive(true);
+    setPhase("center"); // step 0 selalu welcome (center)
     setTargetRect(null);
-    setNotFound(false);
   }
 
   function endTour() {
+    clearTimers();
     setActive(false);
     setStep(0);
+    setPhase("center");
     setTargetRect(null);
-    setNotFound(false);
   }
 
   function goNext() {
     const nextIdx = step + 1;
     if (nextIdx >= STEPS.length) { endTour(); return; }
     const next = STEPS[nextIdx];
+    clearTimers();
     setStep(nextIdx);
     setTargetRect(null);
-    setNotFound(false);
+    // Langsung set phase yang tepat — hindari flash loading untuk step center
+    const nextIsCenter = next.position === "center" || !next.selector;
+    setPhase(nextIsCenter ? "center" : "loading");
     if (next.page && pathname !== next.page) {
       router.push(next.page);
     }
@@ -406,19 +438,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     const prevIdx = step - 1;
     if (prevIdx < 0) return;
     const prev = STEPS[prevIdx];
+    clearTimers();
     setStep(prevIdx);
     setTargetRect(null);
-    setNotFound(false);
+    const prevIsCenter = prev.position === "center" || !prev.selector;
+    setPhase(prevIsCenter ? "center" : "loading");
     if (prev.page && pathname !== prev.page) {
       router.push(prev.page);
     }
   }
-
-  const isCenter = currentStep.position === "center" || !currentStep.selector || notFound;
-  // Spinner hanya tampil saat navigasi antar halaman (pathname belum cocok),
-  // BUKAN saat elemen tidak ditemukan (sudah ada fallback notFound)
-  const isNavigating = !isCenter && !targetRect && !notFound &&
-    !!currentStep.page && pathname !== currentStep.page;
 
   return (
     <TourContext.Provider value={{ active, step, total: STEPS.length, startTour, endTour, goNext, goPrev }}>
@@ -428,12 +456,16 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         <>
           <style>{`
             @keyframes tourSlideIn {
-              from { opacity: 0; transform: scale(0.92) translateY(6px); }
-              to   { opacity: 1; transform: scale(1) translateY(0); }
+              from { opacity: 0; transform: scale(0.92) translateY(8px); }
+              to   { opacity: 1; transform: scale(1)   translateY(0); }
+            }
+            @keyframes tourFadeIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
             }
             @keyframes tourPulse {
-              0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.3); }
-              50%       { box-shadow: 0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px #9B8AFF, 0 0 0 10px rgba(123,97,255,0.15); }
+              0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.65), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.3); }
+              50%       { box-shadow: 0 0 0 9999px rgba(0,0,0,0.65), 0 0 0 3px #9B8AFF, 0 0 0 12px rgba(123,97,255,0.12); }
             }
             @keyframes tourSpin {
               from { transform: rotate(0deg); }
@@ -441,49 +473,76 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
             }
           `}</style>
 
-          {/* Backdrop saat center / notFound */}
-          {isCenter && (
-            <div onClick={endTour}
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 9999 }} />
+          {/* ── PHASE: center ── backdrop + tooltip di tengah */}
+          {phase === "center" && (
+            <>
+              <div onClick={endTour}
+                style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999,
+                  animation: "tourFadeIn 0.2s ease" }} />
+              <TourTooltip
+                step={currentStep} rect={null} total={STEPS.length}
+                onNext={goNext} onPrev={goPrev} onEnd={endTour}
+              />
+            </>
           )}
 
-          {/* Spotlight atas elemen target */}
-          {!isCenter && targetRect && (
+          {/* ── PHASE: loading ── backdrop + spinner, TANPA tooltip */}
+          {phase === "loading" && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: "tourFadeIn 0.15s ease" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" }}>
+                <span style={{
+                  width: "32px", height: "32px",
+                  border: "3px solid rgba(255,255,255,0.2)",
+                  borderTopColor: "#7B61FF",
+                  borderRadius: "50%",
+                  animation: "tourSpin 0.8s linear infinite",
+                  display: "inline-block",
+                }} />
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 500 }}>
+                  Memuat halaman...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ── PHASE: spotlight ── spotlight muncul dulu, tooltip belum */}
+          {phase === "spotlight" && targetRect && (
             <div style={{
               position: "fixed",
               top: targetRect.top - 6,
               left: targetRect.left - 6,
               width: targetRect.width + 12,
               height: targetRect.height + 12,
-              borderRadius: "12px",
+              borderRadius: "14px",
               zIndex: 10000,
               pointerEvents: "none",
-              animation: "tourPulse 2s ease-in-out infinite",
-              boxShadow: "0 0 0 9999px rgba(0,0,0,0.62), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.3)",
-              transition: "top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease",
+              animation: "tourPulse 2.2s ease-in-out infinite, tourFadeIn 0.3s ease",
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.65), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.3)",
             }} />
           )}
 
-          {/* Spinner hanya saat navigasi antar halaman */}
-          {isNavigating && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ color: "#fff", fontSize: "14px", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "tourSpin 0.7s linear infinite", display: "inline-block" }} />
-                Membuka halaman...
-              </div>
-            </div>
-          )}
-
-          {/* Tooltip — tampil selalu kecuali saat navigasi */}
-          {!isNavigating && (
-            <TourTooltip
-              step={currentStep}
-              rect={(!isCenter && targetRect) ? targetRect : null}
-              total={STEPS.length}
-              onNext={goNext}
-              onPrev={goPrev}
-              onEnd={endTour}
-            />
+          {/* ── PHASE: ready ── spotlight + tooltip muncul bersamaan setelah 0.8s */}
+          {phase === "ready" && targetRect && (
+            <>
+              <div style={{
+                position: "fixed",
+                top: targetRect.top - 6,
+                left: targetRect.left - 6,
+                width: targetRect.width + 12,
+                height: targetRect.height + 12,
+                borderRadius: "14px",
+                zIndex: 10000,
+                pointerEvents: "none",
+                animation: "tourPulse 2.2s ease-in-out infinite",
+                boxShadow: "0 0 0 9999px rgba(0,0,0,0.65), 0 0 0 3px #7B61FF, 0 0 0 6px rgba(123,97,255,0.3)",
+              }} />
+              <TourTooltip
+                step={currentStep} rect={targetRect} total={STEPS.length}
+                onNext={goNext} onPrev={goPrev} onEnd={endTour}
+              />
+            </>
           )}
         </>
       )}
