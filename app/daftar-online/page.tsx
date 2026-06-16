@@ -62,7 +62,7 @@ export default function DaftarOnlinePage() {
     const { error: err } = await supabase.from("pasien").insert([{
       nomor_antrian: nomor,
       nama: form.nama.trim(),
-      no_hp: form.no_hp.trim(),
+      no_hp: form.no_hp.replace(/\D/g, ""),
       tanggal_lahir: form.tanggal_lahir || null,
       jenis_kelamin: form.jenis_kelamin,
       keluhan: keluhanFinal,

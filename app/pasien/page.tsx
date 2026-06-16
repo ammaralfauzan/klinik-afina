@@ -311,17 +311,18 @@ export default function PasienPage() {
         if (existingRM && existingRM.length > 0 && existingRM[0].nomor_rm) {
           nomorRM = existingRM[0].nomor_rm; // pasien lama — pakai RM yang sama
         } else {
-          // Pasien baru — generate RM baru
-          const { data: lastRM } = await supabase
+          // Pasien baru — generate RM baru.
+          // Ambil semua nomor_rm lalu cari maksimum SECARA NUMERIK.
+          // (pengurutan string Supabase salah setelah RM-9999: "RM-9999" > "RM-10000")
+          const { data: allRM } = await supabase
             .from("pasien")
             .select("nomor_rm")
             .not("nomor_rm", "is", null)
-            .neq("nomor_rm", "")
-            .order("nomor_rm", { ascending: false })
-            .limit(1);
-          const lastNum = lastRM && lastRM.length > 0
-            ? parseInt(lastRM[0].nomor_rm.replace("RM-", "")) || 0
-            : 0;
+            .neq("nomor_rm", "");
+          const lastNum = (allRM || []).reduce((max, r) => {
+            const n = parseInt(String(r.nomor_rm).replace(/\D/g, "")) || 0;
+            return n > max ? n : max;
+          }, 0);
           nomorRM = "RM-" + String(lastNum + 1).padStart(4, "0");
         }
       } catch { nomorRM = ""; }
