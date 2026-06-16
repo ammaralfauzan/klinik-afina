@@ -52,9 +52,6 @@ body {
   .table-wrapper                { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .table-wrapper table          { min-width: 480px; }
 
-  /* Tour floating button clears bottom nav */
-  .tour-fab { bottom: 90px !important; }
-
   /* Page titles */
   h1 { font-size: 20px !important; }
 }

@@ -73,9 +73,10 @@ export default function Sidebar() {
           .mobile-bottomnav-wrap::after {
             content: '';
             position: absolute; top: 0; right: 0; bottom: 0;
-            width: 48px;
-            background: linear-gradient(to right, transparent, #3D3478 90%);
+            width: 72px;
+            background: linear-gradient(to right, transparent 0%, #3D3478 70%);
             pointer-events: none;
+            z-index: 1;
           }
 
           /* Scrollable nav row */

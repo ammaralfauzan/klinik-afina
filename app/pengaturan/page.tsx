@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Settings, Save, CheckCircle2, Clock, Phone, MapPin, User, Building2, Banknote, Calendar } from "lucide-react";
+import { Settings, Save, CheckCircle2, Clock, Phone, MapPin, User, Building2, Banknote, Calendar, Map } from "lucide-react";
+import { useTour } from "../components/AppTour";
 
 type Pengaturan = {
   id: number; nama_klinik: string; alamat: string; telepon: string;
@@ -33,6 +34,7 @@ function fmtRupiah(v: string) {
 }
 
 export default function PengaturanPage() {
+  const { startTour, active: tourActive } = useTour();
   const [form, setForm] = useState<Pengaturan>({ ...DEFAULTS, ...loadLocal() });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -189,6 +191,29 @@ export default function PengaturanPage() {
         <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "12px 0 0" }}>
           Jadwal ini akan ditampilkan di Dashboard sebagai "Dokter Jaga Hari Ini". Kosongkan jika klinik tutup/off di hari tersebut.
         </p>
+      </div>
+
+      {/* Panduan Aplikasi */}
+      <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", marginBottom: "24px" }}>
+        <p className="section-title"><Map size={13} /> Panduan Aplikasi</p>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.6 }}>
+          Mulai tur interaktif untuk mengenal fitur-fitur utama aplikasi manajemen klinik ini.
+        </p>
+        <button
+          onClick={startTour}
+          disabled={tourActive}
+          style={{
+            background: "linear-gradient(135deg, #7B61FF, #9B8AFF)",
+            border: "none", borderRadius: "12px", padding: "12px 24px",
+            color: "#fff", fontSize: "13px", fontWeight: 700,
+            cursor: tourActive ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: "8px",
+            opacity: tourActive ? 0.6 : 1, transition: "all 0.2s",
+          }}
+        >
+          <Map size={15} />
+          {tourActive ? "Tur sedang berjalan..." : "Mulai Tur Aplikasi"}
+        </button>
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>

@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 import ThemeToggle from "./ThemeToggle";
 import Image from "next/image";
 import { AudioProvider, MuteButton } from "./AudioNotif";
-import { TourProvider, TourFloatingButton } from "./AppTour";
+import { TourProvider } from "./AppTour";
 
 const BYPASS_ROUTES = ["/login", "/display", "/daftar-online"];
 
@@ -80,7 +80,6 @@ export default function ThemedLayout({ children }: { children: React.ReactNode }
           <main className="main-content" style={{ flex: 1, padding: "28px" }}>{children}</main>
         </div>
       </div>
-      <TourFloatingButton />
     </AudioProvider>
     </TourProvider>
   );
