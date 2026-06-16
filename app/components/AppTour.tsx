@@ -192,7 +192,7 @@ function TourTooltip({
     // Element in lower half → tooltip near top; otherwise near bottom (above nav)
     dy0 = mid > SH * 0.55 ? 70 : SH - TH - 96;
   } else {
-    let pos = step.position || "bottom";
+    const pos = step.position || "bottom";
     const ecx = rect.left + rect.width / 2;
     const ecy = rect.top  + rect.height / 2;
     if (pos === "bottom" || pos === "top") {

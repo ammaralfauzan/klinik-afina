@@ -15,7 +15,8 @@ const AudioContext = createContext<AudioCtx | null>(null);
 
 function makeAudioCtx() {
   try {
-    return new (window.AudioContext || (window as any).webkitAudioContext)();
+    const w = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+    return new (w.AudioContext || w.webkitAudioContext)!();
   } catch { return null; }
 }
 

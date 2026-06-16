@@ -317,7 +317,7 @@ export default function DaftarPasienPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {selectedPatient.kunjungan
                   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((k, i) => {
+                  .map((k) => {
                     const st = getStatusBadge(k.status);
                     const StatusIcon = st.icon;
                     return (

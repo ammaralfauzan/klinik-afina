@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
@@ -378,9 +378,10 @@ export default function PasienPage() {
         setTouched({});
         setSchemaStatus("ok");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[pasien] unexpected error:", err);
-      showToast("error", `Error tidak terduga: ${err?.message || "Cek console untuk detail."}`);
+      const msg = err instanceof Error ? err.message : "Cek console untuk detail.";
+      showToast("error", `Error tidak terduga: ${msg}`);
     } finally {
       setLoading(false);
     }

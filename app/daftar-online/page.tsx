@@ -20,7 +20,6 @@ export default function DaftarOnlinePage() {
   const [menunggu, setMenunggu] = useState(0);
   const [nomorTerakhir, setNomorTerakhir] = useState(0);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const [form, setForm] = useState({
     nama: "", no_hp: "", tanggal_lahir: "", jenis_kelamin: "Perempuan", keluhan: "", keluhan_custom: "",

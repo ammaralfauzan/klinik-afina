@@ -82,13 +82,13 @@ export default function PengaturanPage() {
     { key: "dokter_jaga", label: "Dokter / Bidan Jaga", icon: User, placeholder: "Nama dokter atau bidan", type: "text" },
     { key: "jam_buka", label: "Jam Buka", icon: Clock, placeholder: "08:00", type: "time" },
     { key: "jam_tutup", label: "Jam Tutup", icon: Clock, placeholder: "17:00", type: "time" },
-  ];
+  ] as const;
 
   const tarifFields = [
     { key: "tarif_umum", label: "Tarif Pasien Umum", placeholder: "75000" },
     { key: "tarif_bpjs", label: "Tarif Pasien BPJS", placeholder: "0" },
     { key: "tarif_igd", label: "Tarif IGD / Emergency", placeholder: "150000" },
-  ];
+  ] as const;
 
   return (
     <div>
@@ -142,7 +142,7 @@ export default function PengaturanPage() {
                   <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", display: "flex" }}>
                     <Icon size={15} color="#7B61FF" strokeWidth={1.8} />
                   </div>
-                  <input className="form-input" type={f.type} placeholder={f.placeholder} value={(form as any)[f.key] || ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+                  <input className="form-input" type={f.type} placeholder={f.placeholder} value={form[f.key] || ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 </div>
               </div>
             );
@@ -161,11 +161,11 @@ export default function PengaturanPage() {
                 className="form-input form-input-plain"
                 type="text" inputMode="numeric"
                 placeholder={f.placeholder}
-                value={(form as any)[f.key] || ""}
+                value={form[f.key] || ""}
                 onChange={(e) => setForm({ ...form, [f.key]: e.target.value.replace(/\D/g, "") })}
               />
-              {(form as any)[f.key] && (
-                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "4px 0 0" }}>{fmtRupiah((form as any)[f.key])}</p>
+              {form[f.key] && (
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "4px 0 0" }}>{fmtRupiah(form[f.key])}</p>
               )}
             </div>
           ))}
@@ -189,7 +189,7 @@ export default function PengaturanPage() {
           ))}
         </div>
         <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "12px 0 0" }}>
-          Jadwal ini akan ditampilkan di Dashboard sebagai "Dokter Jaga Hari Ini". Kosongkan jika klinik tutup/off di hari tersebut.
+          Jadwal ini akan ditampilkan di Dashboard sebagai &quot;Dokter Jaga Hari Ini&quot;. Kosongkan jika klinik tutup/off di hari tersebut.
         </p>
       </div>
 

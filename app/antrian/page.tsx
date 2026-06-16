@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { PhoneCall, CheckCircle2, Clock, Users, Tv2, MessageCircle, UserX, Search } from "lucide-react";
+import { PhoneCall, CheckCircle2, Clock, Tv2, MessageCircle, UserX, Search } from "lucide-react";
 import { useAudio } from "../components/AudioNotif";
 import Toast from "../components/Toast";
 
@@ -69,7 +69,7 @@ export default function AntrianPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [fetchPasien, playDing]);
+  }, [fetchPasien, playDing, sendPushNotif]);
 
   async function updateStatus(p: Pasien, status: string) {
     // Optimistic update — UI langsung berubah sebelum menunggu Supabase

@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle, X } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle } from "lucide-react";
 
 type Pasien = {
   nomor_antrian: number; nama: string; keluhan: string;

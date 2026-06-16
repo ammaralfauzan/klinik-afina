@@ -85,7 +85,7 @@ export default function Home() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [fetchPasien, playDing]);
+  }, [fetchPasien, playDing, sendPushNotif]);
 
   const belumBayar = pasienList.filter(p => p.status === "Selesai" && p.status_bayar !== "Lunas").length;
 
