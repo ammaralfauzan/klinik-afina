@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { validateNama, validateNoHp, validateNIK } from "../../lib/validation";
+import { validateNama, validateNoHp, validateNIK, validateNomorBPJS } from "../../lib/validation";
 import {
   CheckCircle, Clock, Users, ChevronRight,
   Phone, User, Calendar, AlertCircle, Share2, CreditCard,
@@ -33,6 +33,7 @@ export default function DaftarOnlinePage() {
     nama: "", no_hp: "", nomor_nik: "",
     tanggal_lahir: "", jenis_kelamin: "Perempuan",
     keluhan: "", keluhan_custom: "",
+    jenis_pembayaran: "Umum", nomor_bpjs: "", nama_asuransi: "",
   });
   const [result, setResult] = useState<{ nomor: number; nama: string } | null>(null);
 
@@ -87,6 +88,14 @@ export default function DaftarOnlinePage() {
     if (!keluhanFinal) errs.keluhan = "Pilih keluhan utama";
     if (form.keluhan === "Lainnya" && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
 
+    if (form.jenis_pembayaran === "BPJS") {
+      const bpjsErr = validateNomorBPJS(form.nomor_bpjs);
+      if (bpjsErr) errs.nomor_bpjs = bpjsErr;
+    }
+    if (form.jenis_pembayaran === "Asuransi Swasta" && !form.nama_asuransi.trim()) {
+      errs.nama_asuransi = "Nama asuransi & nomor polis wajib diisi";
+    }
+
     return errs;
   }
 
@@ -134,15 +143,17 @@ export default function DaftarOnlinePage() {
     const nomorFallback = (todayData?.[0]?.nomor_antrian || 0) + 1;
 
     const payload = {
-      nama:          form.nama.trim(),
-      no_hp:         form.no_hp.replace(/\D/g, ""),
-      nomor_nik:     nikClean,
-      tanggal_lahir: form.tanggal_lahir || null,
-      jenis_kelamin: form.jenis_kelamin,
-      keluhan:       keluhanFinal,
-      status:        "Menunggu",
-      jenis_pembayaran: "Umum",
-      nomor_rm:      "",
+      nama:             form.nama.trim(),
+      no_hp:            form.no_hp.replace(/\D/g, ""),
+      nomor_nik:        nikClean,
+      tanggal_lahir:    form.tanggal_lahir || null,
+      jenis_kelamin:    form.jenis_kelamin,
+      keluhan:          keluhanFinal,
+      status:           "Menunggu",
+      jenis_pembayaran: form.jenis_pembayaran,
+      nomor_bpjs:       form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.replace(/\D/g, "") : "",
+      nama_asuransi:    form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
+      nomor_rm:         "",
     };
 
     let nomor = nomorFallback;
@@ -184,7 +195,7 @@ export default function DaftarOnlinePage() {
   }
 
   function daftarLagi() {
-    setForm({ nama: "", no_hp: "", nomor_nik: "", tanggal_lahir: "", jenis_kelamin: "Perempuan", keluhan: "", keluhan_custom: "" });
+    setForm({ nama: "", no_hp: "", nomor_nik: "", tanggal_lahir: "", jenis_kelamin: "Perempuan", keluhan: "", keluhan_custom: "", jenis_pembayaran: "Umum", nomor_bpjs: "", nama_asuransi: "" });
     setFieldErrors({});
     setError("");
     setResult(null);
@@ -453,6 +464,55 @@ export default function DaftarOnlinePage() {
                 </>
               )}
             </div>
+
+            {/* Jenis Pembayaran */}
+            <div>
+              <label className="dol-label">Jenis Pembayaran</label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {(["Umum", "BPJS", "Asuransi Swasta"] as const).map(opt => (
+                  <button
+                    key={opt}
+                    className="gender-btn"
+                    style={{
+                      flex: "none",
+                      borderColor: form.jenis_pembayaran === opt ? "#7B61FF" : "#E0DFFF",
+                      background: form.jenis_pembayaran === opt ? "#EDE9FF" : "#F8F7FF",
+                      color: form.jenis_pembayaran === opt ? "#7B61FF" : "#555",
+                    }}
+                    onClick={() => { setForm(f => ({ ...f, jenis_pembayaran: opt, nomor_bpjs: "", nama_asuransi: "" })); clearErr("nomor_bpjs"); clearErr("nama_asuransi"); }}
+                  >
+                    {opt === "Umum" ? "👤 Umum" : opt === "BPJS" ? "🏥 BPJS" : "📋 Asuransi Swasta"}
+                  </button>
+                ))}
+              </div>
+
+              {form.jenis_pembayaran === "BPJS" && (
+                <div style={{ marginTop: "10px" }}>
+                  <input
+                    className={`dol-input dol-input-plain${fieldErrors.nomor_bpjs ? " err" : ""}`}
+                    placeholder="13 digit nomor kartu BPJS"
+                    inputMode="numeric"
+                    maxLength={13}
+                    value={form.nomor_bpjs}
+                    onChange={e => { setForm(f => ({ ...f, nomor_bpjs: e.target.value.replace(/\D/g, "").slice(0, 13) })); clearErr("nomor_bpjs"); }}
+                  />
+                  <FieldErr field="nomor_bpjs" />
+                </div>
+              )}
+
+              {form.jenis_pembayaran === "Asuransi Swasta" && (
+                <div style={{ marginTop: "10px" }}>
+                  <input
+                    className={`dol-input dol-input-plain${fieldErrors.nama_asuransi ? " err" : ""}`}
+                    placeholder="Nama asuransi & nomor polis (contoh: Prudential - POL123456)"
+                    value={form.nama_asuransi}
+                    onChange={e => { setForm(f => ({ ...f, nama_asuransi: e.target.value })); clearErr("nama_asuransi"); }}
+                  />
+                  <FieldErr field="nama_asuransi" />
+                </div>
+              )}
+            </div>
+
           </div>
 
           <button
