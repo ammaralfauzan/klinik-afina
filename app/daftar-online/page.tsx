@@ -19,6 +19,13 @@ type Step = "form" | "submitting" | "success";
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 
+function formatHP(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 13);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 8) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8)}`;
+}
+
 const COOLDOWN_SECS = 30;
 
 export default function DaftarOnlinePage() {
@@ -387,7 +394,7 @@ export default function DaftarOnlinePage() {
                 <CreditCard size={15} color="#aaa" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
                   className={`dol-input${fieldErrors.nomor_nik ? " err" : ""}`}
-                  placeholder="16 digit NIK sesuai KTP"
+                  placeholder="Masukkan NIK yang sesuai"
                   inputMode="numeric"
                   maxLength={16}
                   value={form.nomor_nik}
@@ -414,7 +421,7 @@ export default function DaftarOnlinePage() {
                   type="tel"
                   placeholder="08xx-xxxx-xxxx"
                   value={form.no_hp}
-                  onChange={e => { setForm(f => ({ ...f, no_hp: e.target.value })); clearErr("no_hp"); }}
+                  onChange={e => { setForm(f => ({ ...f, no_hp: formatHP(e.target.value) })); clearErr("no_hp"); }}
                 />
               </div>
               <FieldErr field="no_hp" />
@@ -490,7 +497,7 @@ export default function DaftarOnlinePage() {
                 <div style={{ marginTop: "10px" }}>
                   <input
                     className={`dol-input dol-input-plain${fieldErrors.nomor_bpjs ? " err" : ""}`}
-                    placeholder="13 digit nomor kartu BPJS"
+                    placeholder="Masukkan Nomor BPJS yang sesuai"
                     inputMode="numeric"
                     maxLength={13}
                     value={form.nomor_bpjs}
