@@ -163,6 +163,7 @@ function TourTooltip({
   step: TourStep; rect: DOMRect | null; total: number;
   onNext: () => void; onPrev: () => void; onEnd: () => void;
 }) {
+  const touchStartX = useRef(0);
   const isFirst = STEPS[0].id === step.id;
   const isLast = STEPS[STEPS.length - 1].id === step.id;
   const stepNum = STEPS.findIndex(s => s.id === step.id) + 1;
@@ -171,142 +172,183 @@ function TourTooltip({
   const SCREEN_W = typeof window !== "undefined" ? window.innerWidth : 1200;
   const SCREEN_H = typeof window !== "undefined" ? window.innerHeight : 800;
   const IS_MOBILE = SCREEN_W < 640;
-  // Tooltip width: max 340px, tapi min 24px margin di kiri+kanan
   const TOOLTIP_W = Math.min(340, SCREEN_W - 24);
-  const TOOLTIP_H = 250;
+  const TOOLTIP_H = 260;
   const GAP = 12;
   const MARGIN = 12;
 
-  // Pisahkan positionStyle (layout) dari animationStyle (transform animasi)
-  // agar transform centering tidak di-override oleh keyframe tourSlideIn
+  // Outer div: positioning only (includes centering transform)
+  // Inner div: slide-in animation only — separated so transforms don't conflict
   let positionStyle: React.CSSProperties = {};
-  let arrowStyle: React.CSSProperties = { display: "none" };
+  // Desktop: CSS triangle arrow pointing to element
+  let desktopArrow: React.CSSProperties = { display: "none" };
+  // Mobile: which direction the centered arrow points ("up" | "down" | null)
+  let mobileArrowDir: "up" | "down" | null = null;
 
   if (isCenter || !rect) {
     positionStyle = {
-      position: "fixed",
-      top: "50%", left: "50%",
+      position: "fixed", top: "50%", left: "50%",
       transform: "translate(-50%, -50%)",
-      zIndex: 10002,
-      width: TOOLTIP_W,
+      zIndex: 10002, width: TOOLTIP_W,
     };
+  } else if (IS_MOBILE) {
+    // ── Mobile: bottom-sheet or top-sheet, full-width ──────────────────────
+    // Element centroid: decide whether tooltip goes above or below viewport center
+    const elementMidY = rect.top + rect.height / 2;
+    if (elementMidY > SCREEN_H * 0.55) {
+      // Element in lower half → tooltip at top so it doesn't cover the element
+      positionStyle = { position: "fixed", top: 70, left: MARGIN, right: MARGIN, zIndex: 10002 };
+      mobileArrowDir = "down"; // arrow points down toward element
+    } else {
+      // Element in upper half → tooltip at bottom
+      positionStyle = { position: "fixed", bottom: 96, left: MARGIN, right: MARGIN, zIndex: 10002 };
+      mobileArrowDir = "up"; // arrow points up toward element
+    }
   } else {
-    // Pada layar sempit, ubah left/right → bottom agar tidak off-screen
+    // ── Desktop: smart positioning with flip ───────────────────────────────
     let pos = step.position || "bottom";
-    if (IS_MOBILE && (pos === "left" || pos === "right")) pos = "bottom";
-
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-
     let top = 0, left = 0;
 
     if (pos === "bottom") {
       top = rect.bottom + GAP;
       left = Math.max(MARGIN, Math.min(cx - TOOLTIP_W / 2, SCREEN_W - TOOLTIP_W - MARGIN));
-      const arrowLeft = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
-      arrowStyle = { top: -8, left: arrowLeft, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderBottom: "8px solid var(--bg-card)" };
+      // Flip to top if not enough space below
+      if (top + TOOLTIP_H > SCREEN_H - MARGIN) { top = rect.top - TOOLTIP_H - GAP; pos = "top"; }
+      const al = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
+      desktopArrow = { top: pos === "bottom" ? -8 : undefined, bottom: pos === "top" ? -8 : undefined, left: al, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", ...(pos === "bottom" ? { borderBottom: "8px solid var(--bg-card)" } : { borderTop: "8px solid var(--bg-card)" }) };
     } else if (pos === "top") {
       top = rect.top - TOOLTIP_H - GAP;
       left = Math.max(MARGIN, Math.min(cx - TOOLTIP_W / 2, SCREEN_W - TOOLTIP_W - MARGIN));
-      const arrowLeft = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
-      arrowStyle = { bottom: -8, left: arrowLeft, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "8px solid var(--bg-card)" };
+      // Flip to bottom if not enough space above
+      if (top < MARGIN) { top = rect.bottom + GAP; pos = "bottom"; }
+      const al = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
+      desktopArrow = { top: pos === "bottom" ? -8 : undefined, bottom: pos === "top" ? -8 : undefined, left: al, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", ...(pos === "bottom" ? { borderBottom: "8px solid var(--bg-card)" } : { borderTop: "8px solid var(--bg-card)" }) };
     } else if (pos === "right") {
       top = Math.max(MARGIN, Math.min(cy - TOOLTIP_H / 2, SCREEN_H - TOOLTIP_H - MARGIN));
       left = rect.right + GAP;
-      const arrowTop = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
-      arrowStyle = { top: arrowTop, left: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid var(--bg-card)" };
+      if (left + TOOLTIP_W > SCREEN_W - MARGIN) { left = rect.left - TOOLTIP_W - GAP; pos = "left"; }
+      const at = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
+      desktopArrow = pos === "right"
+        ? { top: at, left: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid var(--bg-card)" }
+        : { top: at, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" };
     } else if (pos === "left") {
       top = Math.max(MARGIN, Math.min(cy - TOOLTIP_H / 2, SCREEN_H - TOOLTIP_H - MARGIN));
       left = rect.left - TOOLTIP_W - GAP;
-      const arrowTop = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
-      arrowStyle = { top: arrowTop, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" };
+      if (left < MARGIN) { left = rect.right + GAP; pos = "right"; }
+      const at = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
+      desktopArrow = pos === "left"
+        ? { top: at, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" }
+        : { top: at, left: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid var(--bg-card)" };
     }
 
     top = Math.max(MARGIN, Math.min(top, SCREEN_H - TOOLTIP_H - MARGIN));
     left = Math.max(MARGIN, Math.min(left, SCREEN_W - TOOLTIP_W - MARGIN));
-
     positionStyle = { position: "fixed", top, left, zIndex: 10002, width: TOOLTIP_W };
   }
 
-  return (
-    // Outer div: hanya positioning (termasuk transform centering)
-    // Inner div: animasi slide-in — dipisah agar transform tidak bentrok
-    <div style={positionStyle}>
-      <div style={{ animation: "tourSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1)" }}>
-        {/* Arrow */}
-        {!isCenter && rect && (
-          <div style={{ position: "absolute", width: 0, height: 0, ...arrowStyle }} />
-        )}
+  const card = (
+    <div style={{
+      background: "var(--bg-card)", borderRadius: "20px",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(123,97,255,0.25)",
+      overflow: "hidden",
+      userSelect: "none",
+    }}
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) { diff > 0 ? onNext() : onPrev(); }
+      }}
+    >
+      {/* Progress bar */}
+      <div style={{ height: "3px", background: "var(--border-color)" }}>
+        <div style={{ height: "100%", background: "linear-gradient(90deg, #7B61FF, #9B8AFF)", width: `${(stepNum / total) * 100}%`, transition: "width 0.4s ease" }} />
+      </div>
 
-      {/* Card */}
-      <div style={{
-        background: "var(--bg-card)", borderRadius: "20px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(123,97,255,0.25)",
-        overflow: "hidden",
-      }}>
-        {/* Progress bar */}
-        <div style={{ height: "3px", background: "var(--border-color)" }}>
-          <div style={{ height: "100%", background: "linear-gradient(90deg, #7B61FF, #9B8AFF)", width: `${(stepNum / total) * 100}%`, transition: "width 0.4s ease" }} />
-        </div>
-
-        <div style={{ padding: "20px 20px 0" }}>
-          {/* Step counter */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#7B61FF", background: "rgba(123,97,255,0.1)", padding: "3px 10px", borderRadius: "20px", border: "1px solid rgba(123,97,255,0.2)" }}>
-              {stepNum} / {total}
-            </span>
+      <div style={{ padding: "20px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#7B61FF", background: "rgba(123,97,255,0.1)", padding: "3px 10px", borderRadius: "20px", border: "1px solid rgba(123,97,255,0.2)" }}>
+            {stepNum} / {total}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {IS_MOBILE && (
+              <span style={{ fontSize: "10px", color: "rgba(123,97,255,0.5)", fontWeight: 500 }}>← geser →</span>
+            )}
             <button onClick={onEnd} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", borderRadius: "6px", opacity: 0.5 }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>
               <X size={15} color="var(--text-secondary)" />
             </button>
           </div>
-
-          {/* Emoji + Title */}
-          {step.emoji && (
-            <div style={{ fontSize: "28px", marginBottom: "8px", lineHeight: 1 }}>{step.emoji}</div>
-          )}
-          <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.3 }}>
-            {step.title}
-          </h3>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.65 }}>
-            {step.description}
-          </p>
         </div>
 
-        {/* Buttons */}
-        <div style={{ padding: "16px 20px", display: "flex", gap: "8px", alignItems: "center" }}>
-          {!isFirst && (
-            <button onClick={onPrev} style={{
-              background: "var(--input-bg)", border: "1px solid var(--border-color)", borderRadius: "10px",
-              padding: "9px 14px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "all 0.15s",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = "#7B61FF")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-color)")}>
-              <ChevronLeft size={13} /> Kembali
-            </button>
-          )}
-
-          <button onClick={isLast ? onEnd : onNext} style={{
-            flex: 1, background: isLast ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #7B61FF, #9B8AFF)",
-            border: "none", borderRadius: "10px", padding: "10px 16px",
-            fontSize: "13px", fontWeight: 700, color: "#fff", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-            fontFamily: "inherit", transition: "all 0.15s",
-          }}
-            onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-            onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
-            {isFirst ? (
-              <><Play size={13} /> Mulai Tour</>
-            ) : isLast ? (
-              <><CheckCircle2 size={13} /> Selesai!</>
-            ) : (
-              <>Selanjutnya <ChevronRight size={13} /></>
-            )}
-          </button>
-        </div>
+        {step.emoji && (
+          <div style={{ fontSize: "28px", marginBottom: "8px", lineHeight: 1 }}>{step.emoji}</div>
+        )}
+        <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.3 }}>
+          {step.title}
+        </h3>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.65 }}>
+          {step.description}
+        </p>
       </div>
+
+      <div style={{ padding: "16px 20px", display: "flex", gap: "8px", alignItems: "center" }}>
+        {!isFirst && (
+          <button onClick={onPrev} style={{
+            background: "var(--input-bg)", border: "1px solid var(--border-color)", borderRadius: "10px",
+            padding: "9px 14px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "all 0.15s",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = "#7B61FF")}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-color)")}>
+            <ChevronLeft size={13} /> Kembali
+          </button>
+        )}
+        <button onClick={isLast ? onEnd : onNext} style={{
+          flex: 1, background: isLast ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #7B61FF, #9B8AFF)",
+          border: "none", borderRadius: "10px", padding: "10px 16px",
+          fontSize: "13px", fontWeight: 700, color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+          fontFamily: "inherit", transition: "all 0.15s",
+        }}
+          onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
+          onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
+          {isFirst ? <><Play size={13} /> Mulai Tour</> : isLast ? <><CheckCircle2 size={13} /> Selesai!</> : <>Selanjutnya <ChevronRight size={13} /></>}
+        </button>
+      </div>
+    </div>
+  );
+
+  // Triangle arrow for mobile (centered, points toward highlighted element)
+  const mobileArrow = (dir: "up" | "down") => (
+    <div style={{ display: "flex", justifyContent: "center", ...(dir === "up" ? { marginBottom: "2px" } : { marginTop: "2px" }) }}>
+      <div style={{
+        width: 0, height: 0,
+        borderLeft: "10px solid transparent", borderRight: "10px solid transparent",
+        ...(dir === "up"
+          ? { borderBottom: "10px solid var(--bg-card)" }
+          : { borderTop: "10px solid var(--bg-card)" }),
+      }} />
+    </div>
+  );
+
+  return (
+    <div style={positionStyle}>
+      <div style={{ animation: "tourSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1)", position: "relative" }}>
+        {/* Desktop: absolute arrow pointing to element */}
+        {!IS_MOBILE && !isCenter && rect && (
+          <div style={{ position: "absolute", width: 0, height: 0, ...desktopArrow }} />
+        )}
+
+        {/* Mobile: centered arrow ABOVE card (element is below) */}
+        {IS_MOBILE && mobileArrowDir === "up" && mobileArrow("up")}
+
+        {card}
+
+        {/* Mobile: centered arrow BELOW card (element is above) */}
+        {IS_MOBILE && mobileArrowDir === "down" && mobileArrow("down")}
       </div>
     </div>
   );
