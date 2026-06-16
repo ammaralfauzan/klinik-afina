@@ -34,15 +34,14 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; }
-        h1, h2, h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+        body { font-family: var(--font-inter), system-ui, sans-serif; }
+        h1, h2, h3 { font-family: var(--font-jakarta), system-ui, sans-serif; }
         .login-input {
           width: 100%; background: #F0EFFF; border: 1.5px solid #E4E0FF;
           border-radius: 10px; padding: 12px 14px; font-size: 14px;
           color: #1A1A2E; outline: none; transition: all 0.2s;
-          font-family: 'Inter', sans-serif;
+          font-family: var(--font-inter), sans-serif;
         }
         .login-input::placeholder { color: #B0AECA; }
         .login-input:focus { border-color: #6C5CE7; background: #fff; }
@@ -50,7 +49,7 @@ export default function LoginPage() {
           width: 100%; background: #6C5CE7; color: #fff;
           border: none; border-radius: 12px; padding: 14px;
           font-size: 15px; font-weight: 700; cursor: pointer;
-          transition: all 0.2s; font-family: 'Inter', sans-serif;
+          transition: all 0.2s; font-family: var(--font-inter), sans-serif;
         }
         .login-btn:hover:not(:disabled) { background: #5a4bd1; transform: translateY(-1px); }
         .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }

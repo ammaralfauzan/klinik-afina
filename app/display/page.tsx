@@ -109,8 +109,6 @@ export default function DisplayPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap');
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { width: 100%; height: 100%; overflow: hidden; }
 
@@ -126,7 +124,7 @@ export default function DisplayPage() {
           width: 100vw; height: 100vh;
           background: #0f0520;
           display: flex; flex-direction: column;
-          font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+          font-family: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
           color: #fff;
           overflow: hidden;
         }

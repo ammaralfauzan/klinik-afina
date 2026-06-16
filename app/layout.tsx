@@ -1,8 +1,23 @@
 import type { Metadata } from "next";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "./components/ThemeProvider";
 import ThemedLayout from "./components/ThemedLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   icons: { icon: "/logo-afina.png" },
@@ -13,12 +28,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" className={`${inter.variable} ${jakarta.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
         <style>{`
           [data-theme="dark"] {
             --bg-main: #0f0e1a;
@@ -55,8 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             --shadow: 0 2px 12px rgba(0,0,0,0.08);
           }
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-          h1, h2, h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+          body { font-family: var(--font-inter), system-ui, -apple-system, sans-serif; }
+          h1, h2, h3 { font-family: var(--font-jakarta), system-ui, sans-serif; }
           @media (display-mode: standalone) { body { padding-top: env(safe-area-inset-top); } }
           .mobile-header { display: none; }
           @media (max-width: 768px) {
