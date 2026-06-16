@@ -65,8 +65,9 @@ ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nama_asuransi TEXT DEFAULT '';
 -- Aktifkan RLS pada tabel pasien
 ALTER TABLE pasien ENABLE ROW LEVEL SECURITY;
 
--- Policy: user yang sudah login bisa baca/tulis semua data pasien
-CREATE POLICY IF NOT EXISTS "authenticated_all_pasien"
+-- Hapus policy lama jika ada, lalu buat ulang
+DROP POLICY IF EXISTS "authenticated_all_pasien" ON pasien;
+CREATE POLICY "authenticated_all_pasien"
   ON pasien FOR ALL
   TO authenticated
   USING (true)
@@ -75,7 +76,8 @@ CREATE POLICY IF NOT EXISTS "authenticated_all_pasien"
 -- Aktifkan RLS pada tabel rekam_medis
 ALTER TABLE rekam_medis ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "authenticated_all_rekam_medis"
+DROP POLICY IF EXISTS "authenticated_all_rekam_medis" ON rekam_medis;
+CREATE POLICY "authenticated_all_rekam_medis"
   ON rekam_medis FOR ALL
   TO authenticated
   USING (true)
@@ -83,5 +85,6 @@ CREATE POLICY IF NOT EXISTS "authenticated_all_rekam_medis"
 
 -- Aktifkan RLS pada tabel pengaturan (jika ada)
 -- ALTER TABLE pengaturan ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY IF NOT EXISTS "authenticated_all_pengaturan"
+-- DROP POLICY IF EXISTS "authenticated_all_pengaturan" ON pengaturan;
+-- CREATE POLICY "authenticated_all_pengaturan"
 --   ON pengaturan FOR ALL TO authenticated USING (true) WITH CHECK (true);
