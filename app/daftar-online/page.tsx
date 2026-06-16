@@ -57,10 +57,9 @@ export default function DaftarOnlinePage() {
     const { data: todayData } = await supabase.from("pasien")
       .select("nomor_antrian").gte("created_at", start).lte("created_at", end)
       .order("nomor_antrian", { ascending: false }).limit(1);
-    const nomor = (todayData?.[0]?.nomor_antrian || 0) + 1;
+    const nomorFallback = (todayData?.[0]?.nomor_antrian || 0) + 1;
 
-    const { error: err } = await supabase.from("pasien").insert([{
-      nomor_antrian: nomor,
+    const payload = {
       nama: form.nama.trim(),
       no_hp: form.no_hp.replace(/\D/g, ""),
       tanggal_lahir: form.tanggal_lahir || null,
@@ -69,7 +68,28 @@ export default function DaftarOnlinePage() {
       status: "Menunggu",
       jenis_pembayaran: "Umum",
       nomor_rm: "",
-    }]);
+    };
+
+    // Registrasi ATOMIK via RPC (cegah nomor antrian kembar saat banyak yang daftar bersamaan).
+    // Fallback ke insert biasa bila fungsi RPC belum di-migrasi.
+    let nomor = nomorFallback;
+    let err: { message: string; code?: string } | null = null;
+
+    const { data: rpcRow, error: rpcErr } = await supabase.rpc("daftar_pasien", {
+      data: { ...payload, day_start: start, day_end: end },
+    });
+
+    if (rpcErr) {
+      const fnMissing = rpcErr.code === "PGRST202" || /function .*does not exist/i.test(rpcErr.message || "");
+      if (fnMissing) {
+        const ins = await supabase.from("pasien").insert([{ ...payload, nomor_antrian: nomorFallback }]);
+        err = ins.error;
+      } else {
+        err = rpcErr;
+      }
+    } else if (rpcRow && typeof (rpcRow as { nomor_antrian?: number }).nomor_antrian === "number") {
+      nomor = (rpcRow as { nomor_antrian: number }).nomor_antrian;
+    }
 
     if (err) {
       setError("Gagal mendaftar, coba lagi: " + err.message);

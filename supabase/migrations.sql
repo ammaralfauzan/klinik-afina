@@ -97,3 +97,56 @@ CREATE POLICY "authenticated_all_rekam_medis"
 -- DROP POLICY IF EXISTS "authenticated_all_pengaturan" ON pengaturan;
 -- CREATE POLICY "authenticated_all_pengaturan"
 --   ON pengaturan FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- LANGKAH 8: Registrasi pasien ATOMIK (anti race-condition)
+-- Mencegah dua pasien dapat nomor antrian yang sama saat
+-- mendaftar bersamaan (terutama via pendaftaran online).
+-- Memakai advisory lock agar perhitungan nomor + insert
+-- berjalan serial per-hari.
+-- ============================================================
+CREATE OR REPLACE FUNCTION daftar_pasien(data jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  no_baru      int;
+  day_start    timestamptz := (data->>'day_start')::timestamptz;
+  day_end      timestamptz := (data->>'day_end')::timestamptz;
+  inserted     pasien;
+BEGIN
+  -- Serialkan registrasi untuk hari yang sama
+  PERFORM pg_advisory_xact_lock(hashtext('antrian:' || day_start::text));
+
+  SELECT COALESCE(MAX(nomor_antrian), 0) + 1
+    INTO no_baru
+    FROM pasien
+   WHERE created_at >= day_start AND created_at <= day_end;
+
+  INSERT INTO pasien (
+    nomor_antrian, nama, keluhan, tanggal_lahir, jenis_kelamin,
+    alamat, no_hp, jenis_pembayaran, nomor_bpjs, nama_asuransi,
+    nomor_rm, status, created_at
+  ) VALUES (
+    no_baru,
+    data->>'nama',
+    data->>'keluhan',
+    NULLIF(data->>'tanggal_lahir', '')::date,
+    COALESCE(data->>'jenis_kelamin', 'Laki-laki'),
+    COALESCE(data->>'alamat', ''),
+    COALESCE(data->>'no_hp', ''),
+    COALESCE(data->>'jenis_pembayaran', 'Umum'),
+    COALESCE(data->>'nomor_bpjs', ''),
+    COALESCE(data->>'nama_asuransi', ''),
+    COALESCE(data->>'nomor_rm', ''),
+    COALESCE(data->>'status', 'Menunggu'),
+    COALESCE(NULLIF(data->>'created_at', '')::timestamptz, now())
+  )
+  RETURNING * INTO inserted;
+
+  RETURN to_jsonb(inserted);
+END;
+$$;
+
+-- Beri akses ke role yang dipakai aplikasi
+GRANT EXECUTE ON FUNCTION daftar_pasien(jsonb) TO anon, authenticated;

@@ -346,8 +346,27 @@ export default function PasienPage() {
 
       console.log("[pasien] inserting:", payload);
 
-      // 3. Insert
-      const { error } = await supabase.from("pasien").insert([payload]);
+      // 3. Insert — coba registrasi ATOMIK via RPC (anti race-condition nomor antrian).
+      //    Jika fungsi RPC belum di-migrasi, fallback ke insert biasa (perilaku lama).
+      let assignedNo = nomorBaru;
+      let error: { message: string; code?: string; details?: string; hint?: string } | null = null;
+
+      const { data: rpcRow, error: rpcErr } = await supabase.rpc("daftar_pasien", {
+        data: { ...payload, day_start: todayStart, day_end: todayEnd },
+      });
+
+      if (rpcErr) {
+        const fnMissing = rpcErr.code === "PGRST202" || /function .*does not exist/i.test(rpcErr.message || "");
+        if (fnMissing) {
+          // Fungsi belum ada di DB → fallback insert biasa
+          const ins = await supabase.from("pasien").insert([payload]);
+          error = ins.error;
+        } else {
+          error = rpcErr; // error lain (RLS, koneksi, dll) — tampilkan apa adanya
+        }
+      } else if (rpcRow && typeof (rpcRow as { nomor_antrian?: number }).nomor_antrian === "number") {
+        assignedNo = (rpcRow as { nomor_antrian: number }).nomor_antrian; // nomor hasil atomik
+      }
 
       if (error) {
         console.error("[pasien] insert error:", error);
@@ -366,7 +385,7 @@ export default function PasienPage() {
         }
       } else {
         setSlip({
-          nomor: nomorBaru,
+          nomor: assignedNo,
           nama: form.nama.trim(),
           keluhan: keluhanFinal,
           waktu: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
