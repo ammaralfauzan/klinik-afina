@@ -155,7 +155,7 @@ const TourContext = createContext<TourContextType>({
 
 export function useTour() { return useContext(TourContext); }
 
-// ─── Spotlight + Tooltip ─────────────────────────────────────────────────────
+// ─── Spotlight + Tooltip (draggable, dynamic arrow) ──────────────────────────
 
 function TourTooltip({
   step, rect, total, onNext, onPrev, onEnd,
@@ -163,192 +163,218 @@ function TourTooltip({
   step: TourStep; rect: DOMRect | null; total: number;
   onNext: () => void; onPrev: () => void; onEnd: () => void;
 }) {
-  const touchStartX = useRef(0);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [grabbing, setGrabbing] = useState(false);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
+
   const isFirst = STEPS[0].id === step.id;
-  const isLast = STEPS[STEPS.length - 1].id === step.id;
+  const isLast  = STEPS[STEPS.length - 1].id === step.id;
   const stepNum = STEPS.findIndex(s => s.id === step.id) + 1;
   const isCenter = step.position === "center" || !rect;
 
-  const SCREEN_W = typeof window !== "undefined" ? window.innerWidth : 1200;
-  const SCREEN_H = typeof window !== "undefined" ? window.innerHeight : 800;
-  const IS_MOBILE = SCREEN_W < 640;
-  const TOOLTIP_W = Math.min(340, SCREEN_W - 24);
-  const TOOLTIP_H = 260;
-  const GAP = 12;
-  const MARGIN = 12;
+  const SW = typeof window !== "undefined" ? window.innerWidth  : 1200;
+  const SH = typeof window !== "undefined" ? window.innerHeight : 800;
+  const IS_MOBILE = SW < 640;
+  const TW = IS_MOBILE ? SW - 24 : Math.min(340, SW - 24);
+  const TH = 280; // estimated card height (used for centering & arrow calc)
+  const M  = 12;  // viewport margin
+  const G  = 12;  // gap between element and tooltip
 
-  // Outer div: positioning only (includes centering transform)
-  // Inner div: slide-in animation only — separated so transforms don't conflict
-  let positionStyle: React.CSSProperties = {};
-  // Desktop: CSS triangle arrow pointing to element
-  let desktopArrow: React.CSSProperties = { display: "none" };
-  // Mobile: which direction the centered arrow points ("up" | "down" | null)
-  let mobileArrowDir: "up" | "down" | null = null;
-
+  // ── Default (initial) position ──────────────────────────────────────────
+  let dx0 = 0, dy0 = 0;
   if (isCenter || !rect) {
-    positionStyle = {
-      position: "fixed", top: "50%", left: "50%",
-      transform: "translate(-50%, -50%)",
-      zIndex: 10002, width: TOOLTIP_W,
-    };
+    dx0 = (SW - TW) / 2;
+    dy0 = (SH - TH) / 2;
   } else if (IS_MOBILE) {
-    // ── Mobile: bottom-sheet or top-sheet, full-width ──────────────────────
-    // Element centroid: decide whether tooltip goes above or below viewport center
-    const elementMidY = rect.top + rect.height / 2;
-    if (elementMidY > SCREEN_H * 0.55) {
-      // Element in lower half → tooltip at top so it doesn't cover the element
-      positionStyle = { position: "fixed", top: 70, left: MARGIN, right: MARGIN, zIndex: 10002 };
-      mobileArrowDir = "down"; // arrow points down toward element
-    } else {
-      // Element in upper half → tooltip at bottom
-      positionStyle = { position: "fixed", bottom: 96, left: MARGIN, right: MARGIN, zIndex: 10002 };
-      mobileArrowDir = "up"; // arrow points up toward element
-    }
+    dx0 = M;
+    const mid = rect.top + rect.height / 2;
+    // Element in lower half → tooltip near top; otherwise near bottom (above nav)
+    dy0 = mid > SH * 0.55 ? 70 : SH - TH - 96;
   } else {
-    // ── Desktop: smart positioning with flip ───────────────────────────────
     let pos = step.position || "bottom";
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    let top = 0, left = 0;
-
-    if (pos === "bottom") {
-      top = rect.bottom + GAP;
-      left = Math.max(MARGIN, Math.min(cx - TOOLTIP_W / 2, SCREEN_W - TOOLTIP_W - MARGIN));
-      // Flip to top if not enough space below
-      if (top + TOOLTIP_H > SCREEN_H - MARGIN) { top = rect.top - TOOLTIP_H - GAP; pos = "top"; }
-      const al = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
-      desktopArrow = { top: pos === "bottom" ? -8 : undefined, bottom: pos === "top" ? -8 : undefined, left: al, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", ...(pos === "bottom" ? { borderBottom: "8px solid var(--bg-card)" } : { borderTop: "8px solid var(--bg-card)" }) };
-    } else if (pos === "top") {
-      top = rect.top - TOOLTIP_H - GAP;
-      left = Math.max(MARGIN, Math.min(cx - TOOLTIP_W / 2, SCREEN_W - TOOLTIP_W - MARGIN));
-      // Flip to bottom if not enough space above
-      if (top < MARGIN) { top = rect.bottom + GAP; pos = "bottom"; }
-      const al = Math.max(8, Math.min(cx - left - 8, TOOLTIP_W - 16));
-      desktopArrow = { top: pos === "bottom" ? -8 : undefined, bottom: pos === "top" ? -8 : undefined, left: al, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", ...(pos === "bottom" ? { borderBottom: "8px solid var(--bg-card)" } : { borderTop: "8px solid var(--bg-card)" }) };
-    } else if (pos === "right") {
-      top = Math.max(MARGIN, Math.min(cy - TOOLTIP_H / 2, SCREEN_H - TOOLTIP_H - MARGIN));
-      left = rect.right + GAP;
-      if (left + TOOLTIP_W > SCREEN_W - MARGIN) { left = rect.left - TOOLTIP_W - GAP; pos = "left"; }
-      const at = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
-      desktopArrow = pos === "right"
-        ? { top: at, left: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid var(--bg-card)" }
-        : { top: at, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" };
-    } else if (pos === "left") {
-      top = Math.max(MARGIN, Math.min(cy - TOOLTIP_H / 2, SCREEN_H - TOOLTIP_H - MARGIN));
-      left = rect.left - TOOLTIP_W - GAP;
-      if (left < MARGIN) { left = rect.right + GAP; pos = "right"; }
-      const at = Math.max(8, Math.min(cy - top - 8, TOOLTIP_H - 16));
-      desktopArrow = pos === "left"
-        ? { top: at, right: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid var(--bg-card)" }
-        : { top: at, left: -8, borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid var(--bg-card)" };
+    const ecx = rect.left + rect.width / 2;
+    const ecy = rect.top  + rect.height / 2;
+    if (pos === "bottom" || pos === "top") {
+      dx0 = Math.max(M, Math.min(ecx - TW / 2, SW - TW - M));
+      dy0 = pos === "bottom" ? rect.bottom + G : rect.top - TH - G;
+      if (pos === "bottom" && dy0 + TH > SH - M) dy0 = rect.top - TH - G;
+      if (pos === "top"    && dy0 < M)            dy0 = rect.bottom + G;
+    } else {
+      dy0 = Math.max(M, Math.min(ecy - TH / 2, SH - TH - M));
+      dx0 = pos === "right" ? rect.right + G : rect.left - TW - G;
+      if (pos === "right" && dx0 + TW > SW - M) dx0 = rect.left  - TW - G;
+      if (pos === "left"  && dx0 < M)            dx0 = rect.right + G;
     }
-
-    top = Math.max(MARGIN, Math.min(top, SCREEN_H - TOOLTIP_H - MARGIN));
-    left = Math.max(MARGIN, Math.min(left, SCREEN_W - TOOLTIP_W - MARGIN));
-    positionStyle = { position: "fixed", top, left, zIndex: 10002, width: TOOLTIP_W };
+    dx0 = Math.max(M, Math.min(dx0, SW - TW - M));
+    dy0 = Math.max(M, Math.min(dy0, SH - TH - M));
   }
 
-  const card = (
-    <div style={{
-      background: "var(--bg-card)", borderRadius: "20px",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(123,97,255,0.25)",
-      overflow: "hidden",
-      userSelect: "none",
-    }}
-      onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
-      onTouchEnd={e => {
-        const diff = touchStartX.current - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) { diff > 0 ? onNext() : onPrev(); }
-      }}
-    >
-      {/* Progress bar */}
-      <div style={{ height: "3px", background: "var(--border-color)" }}>
-        <div style={{ height: "100%", background: "linear-gradient(90deg, #7B61FF, #9B8AFF)", width: `${(stepNum / total) * 100}%`, transition: "width 0.4s ease" }} />
-      </div>
+  // ── Actual position = default + drag, clamped to viewport ──────────────
+  const ax = Math.max(M, Math.min(dx0 + dragOffset.x, SW - TW - M));
+  const ay = Math.max(M, Math.min(dy0 + dragOffset.y, SH - TH - M));
 
-      <div style={{ padding: "20px 20px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#7B61FF", background: "rgba(123,97,255,0.1)", padding: "3px 10px", borderRadius: "20px", border: "1px solid rgba(123,97,255,0.2)" }}>
-            {stepNum} / {total}
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            {IS_MOBILE && (
-              <span style={{ fontSize: "10px", color: "rgba(123,97,255,0.5)", fontWeight: 500 }}>← geser →</span>
+  // ── Dynamic arrow — always points from tooltip toward highlighted element ─
+  // Finds which edge of the tooltip box the line from tooltip-center to
+  // element-center exits through, then places a CSS triangle there.
+  let arrowStyle: React.CSSProperties | null = null;
+  if (!isCenter && rect) {
+    const S   = 9; // arrow half-size
+    const tcx = ax + TW / 2;
+    const tcy = ay + TH / 2;
+    const ecx = rect.left + rect.width  / 2;
+    const ecy = rect.top  + rect.height / 2;
+    const ddx = ecx - tcx;
+    const ddy = ecy - tcy;
+
+    if (Math.abs(ddx) > 2 || Math.abs(ddy) > 2) {
+      const hw  = TW / 2;
+      const hh  = TH / 2;
+      const hsc = hw / (Math.abs(ddx) || 0.001); // scale to reach left/right edge
+      const vsc = hh / (Math.abs(ddy) || 0.001); // scale to reach top/bottom edge
+
+      if (hsc < vsc) {
+        // Arrow exits left or right edge
+        const side = ddx > 0 ? "right" : "left";
+        const t    = (side === "right" ? hw : -hw) / (ddx || 0.001);
+        const yAt  = tcy + ddy * t;
+        const frac = Math.max(0.12, Math.min(0.88, (yAt - ay) / TH));
+        const at   = frac * TH - S;
+        arrowStyle = side === "right"
+          ? { right: -S, top: at, borderTop: `${S}px solid transparent`, borderBottom: `${S}px solid transparent`, borderLeft:  `${S}px solid var(--bg-card)` }
+          : { left:  -S, top: at, borderTop: `${S}px solid transparent`, borderBottom: `${S}px solid transparent`, borderRight: `${S}px solid var(--bg-card)` };
+      } else {
+        // Arrow exits top or bottom edge
+        const side = ddy > 0 ? "bottom" : "top";
+        const t    = (side === "bottom" ? hh : -hh) / (ddy || 0.001);
+        const xAt  = tcx + ddx * t;
+        const frac = Math.max(0.08, Math.min(0.92, (xAt - ax) / TW));
+        const al   = frac * TW - S;
+        arrowStyle = side === "bottom"
+          ? { bottom: -S, left: al, borderLeft: `${S}px solid transparent`, borderRight: `${S}px solid transparent`, borderTop:    `${S}px solid var(--bg-card)` }
+          : { top:    -S, left: al, borderLeft: `${S}px solid transparent`, borderRight: `${S}px solid transparent`, borderBottom: `${S}px solid var(--bg-card)` };
+      }
+    }
+  }
+
+  // ── Drag: start captured in JSX handler; move/end via window listeners ──
+  const startDrag = (mx: number, my: number) => {
+    isDragging.current = true;
+    setGrabbing(true);
+    dragStart.current = { mx, my, ox: dragOffset.x, oy: dragOffset.y };
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging.current) return;
+      let cx: number, cy: number;
+      if ("touches" in e) {
+        if (!e.touches[0]) return;
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+        e.preventDefault(); // prevent page scroll while dragging tooltip
+      } else {
+        cx = (e as MouseEvent).clientX;
+        cy = (e as MouseEvent).clientY;
+      }
+      setDragOffset({
+        x: dragStart.current.ox + cx - dragStart.current.mx,
+        y: dragStart.current.oy + cy - dragStart.current.my,
+      });
+    };
+    const onUp = () => { isDragging.current = false; setGrabbing(false); };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend",  onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend",  onUp);
+    };
+  }, []); // stable — setDragOffset and refs don't change
+
+  return (
+    <div style={{ position: "fixed", top: ay, left: ax, width: TW, zIndex: 10002 }}>
+      <div style={{ animation: "tourSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1)", position: "relative" }}>
+        {/* Dynamic arrow — repositions as tooltip is dragged */}
+        {arrowStyle && <div style={{ position: "absolute", width: 0, height: 0, ...arrowStyle }} />}
+
+        {/* Card */}
+        <div
+          style={{
+            background: "var(--bg-card)", borderRadius: "20px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(123,97,255,0.25)",
+            overflow: "hidden", userSelect: "none",
+            cursor: grabbing ? "grabbing" : "grab",
+          }}
+          onMouseDown={e => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            e.preventDefault();
+            startDrag(e.clientX, e.clientY);
+          }}
+          onTouchStart={e => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            startDrag(e.touches[0].clientX, e.touches[0].clientY);
+          }}
+        >
+          {/* Drag handle pill */}
+          <div style={{ padding: "10px 0 4px", display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+            <div style={{ width: "32px", height: "4px", borderRadius: "2px", background: "rgba(123,97,255,0.25)" }} />
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: "3px", background: "var(--border-color)" }}>
+            <div style={{ height: "100%", background: "linear-gradient(90deg, #7B61FF, #9B8AFF)", width: `${(stepNum / total) * 100}%`, transition: "width 0.4s ease" }} />
+          </div>
+
+          <div style={{ padding: "16px 20px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#7B61FF", background: "rgba(123,97,255,0.1)", padding: "3px 10px", borderRadius: "20px", border: "1px solid rgba(123,97,255,0.2)" }}>
+                {stepNum} / {total}
+              </span>
+              <button onClick={onEnd} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", borderRadius: "6px", opacity: 0.5 }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>
+                <X size={15} color="var(--text-secondary)" />
+              </button>
+            </div>
+
+            {step.emoji && <div style={{ fontSize: "28px", marginBottom: "8px", lineHeight: 1 }}>{step.emoji}</div>}
+            <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.3 }}>
+              {step.title}
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.65 }}>
+              {step.description}
+            </p>
+          </div>
+
+          <div style={{ padding: "16px 20px", display: "flex", gap: "8px", alignItems: "center" }}>
+            {!isFirst && (
+              <button onClick={onPrev} style={{
+                background: "var(--input-bg)", border: "1px solid var(--border-color)", borderRadius: "10px",
+                padding: "9px 14px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "all 0.15s",
+              }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "#7B61FF")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-color)")}>
+                <ChevronLeft size={13} /> Kembali
+              </button>
             )}
-            <button onClick={onEnd} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", borderRadius: "6px", opacity: 0.5 }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>
-              <X size={15} color="var(--text-secondary)" />
+            <button onClick={isLast ? onEnd : onNext} style={{
+              flex: 1, background: isLast ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #7B61FF, #9B8AFF)",
+              border: "none", borderRadius: "10px", padding: "10px 16px",
+              fontSize: "13px", fontWeight: 700, color: "#fff", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
+              fontFamily: "inherit", transition: "all 0.15s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
+              {isFirst ? <><Play size={13} /> Mulai Tour</> : isLast ? <><CheckCircle2 size={13} /> Selesai!</> : <>Selanjutnya <ChevronRight size={13} /></>}
             </button>
           </div>
         </div>
-
-        {step.emoji && (
-          <div style={{ fontSize: "28px", marginBottom: "8px", lineHeight: 1 }}>{step.emoji}</div>
-        )}
-        <h3 style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.3 }}>
-          {step.title}
-        </h3>
-        <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.65 }}>
-          {step.description}
-        </p>
-      </div>
-
-      <div style={{ padding: "16px 20px", display: "flex", gap: "8px", alignItems: "center" }}>
-        {!isFirst && (
-          <button onClick={onPrev} style={{
-            background: "var(--input-bg)", border: "1px solid var(--border-color)", borderRadius: "10px",
-            padding: "9px 14px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)",
-            cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "all 0.15s",
-          }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = "#7B61FF")}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-color)")}>
-            <ChevronLeft size={13} /> Kembali
-          </button>
-        )}
-        <button onClick={isLast ? onEnd : onNext} style={{
-          flex: 1, background: isLast ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #7B61FF, #9B8AFF)",
-          border: "none", borderRadius: "10px", padding: "10px 16px",
-          fontSize: "13px", fontWeight: 700, color: "#fff", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
-          fontFamily: "inherit", transition: "all 0.15s",
-        }}
-          onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-          onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
-          {isFirst ? <><Play size={13} /> Mulai Tour</> : isLast ? <><CheckCircle2 size={13} /> Selesai!</> : <>Selanjutnya <ChevronRight size={13} /></>}
-        </button>
-      </div>
-    </div>
-  );
-
-  // Triangle arrow for mobile (centered, points toward highlighted element)
-  const mobileArrow = (dir: "up" | "down") => (
-    <div style={{ display: "flex", justifyContent: "center", ...(dir === "up" ? { marginBottom: "2px" } : { marginTop: "2px" }) }}>
-      <div style={{
-        width: 0, height: 0,
-        borderLeft: "10px solid transparent", borderRight: "10px solid transparent",
-        ...(dir === "up"
-          ? { borderBottom: "10px solid var(--bg-card)" }
-          : { borderTop: "10px solid var(--bg-card)" }),
-      }} />
-    </div>
-  );
-
-  return (
-    <div style={positionStyle}>
-      <div style={{ animation: "tourSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1)", position: "relative" }}>
-        {/* Desktop: absolute arrow pointing to element */}
-        {!IS_MOBILE && !isCenter && rect && (
-          <div style={{ position: "absolute", width: 0, height: 0, ...desktopArrow }} />
-        )}
-
-        {/* Mobile: centered arrow ABOVE card (element is below) */}
-        {IS_MOBILE && mobileArrowDir === "up" && mobileArrow("up")}
-
-        {card}
-
-        {/* Mobile: centered arrow BELOW card (element is above) */}
-        {IS_MOBILE && mobileArrowDir === "down" && mobileArrow("down")}
       </div>
     </div>
   );
