@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
-import { Volume2, VolumeX, Bell, BellOff } from "lucide-react";
+import { Volume2, VolumeX, Bell } from "lucide-react";
 
 type AudioCtx = {
   muted: boolean;
@@ -35,11 +35,12 @@ function playTone(ctx: AudioContext, freq: number, start: number, duration: numb
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const [muted, setMuted] = useState(false);
-  const [pushGranted, setPushGranted] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    if ("Notification" in window) {
-      setPushGranted(Notification.permission === "granted");
+    // Client-only: tampilkan banner hanya jika izin notifikasi belum diputuskan
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setShowBanner(Notification.permission === "default");
     }
   }, []);
 
@@ -84,8 +85,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     <AudioContext.Provider value={{ muted, toggleMute, playDing, playDingDing, playDingDown, sendPushNotif }}>
       {children}
       {/* Push notification permission prompt — shown once if not yet granted */}
-      {!pushGranted && "Notification" in window && Notification.permission === "default" && (
-        <PushPermissionBanner onGrant={() => setPushGranted(true)} />
+      {showBanner && (
+        <PushPermissionBanner onGrant={() => setShowBanner(false)} />
       )}
     </AudioContext.Provider>
   );
