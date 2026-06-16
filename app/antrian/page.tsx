@@ -34,7 +34,7 @@ export default function AntrianPage() {
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [searchQ, setSearchQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Semua");
-  const { playDing, playDingDing, playDingDown } = useAudio();
+  const { playDing, playDingDing, playDingDown, sendPushNotif } = useAudio();
 
   const displayed = useMemo(() => pasienList
     .filter(p => !searchQ || p.nama.toLowerCase().includes(searchQ.toLowerCase()))
@@ -61,7 +61,9 @@ export default function AntrianPage() {
         if (payload.eventType === "INSERT") {
           playDing();
           const p = payload.new as Pasien;
-          setToast({ visible: true, message: `Pasien baru: ${p.nama} — No. ${padNo(p.nomor_antrian)}` });
+          const msg = `Pasien baru: ${p.nama} — No. ${padNo(p.nomor_antrian)}`;
+          setToast({ visible: true, message: msg });
+          sendPushNotif("🏥 Pasien Baru Masuk", `${p.nama} · No. Antrian ${padNo(p.nomor_antrian)} · ${p.keluhan}`);
         }
         fetchPasien();
       })
@@ -70,12 +72,22 @@ export default function AntrianPage() {
   }, [fetchPasien, playDing]);
 
   async function updateStatus(p: Pasien, status: string) {
+    // Optimistic update — UI langsung berubah sebelum menunggu Supabase
+    setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status } : x));
+
     const { start, end } = getTodayRange();
-    await supabase.from("pasien")
+    const { error } = await supabase.from("pasien")
       .update({ status })
       .eq("nomor_antrian", p.nomor_antrian)
       .gte("created_at", start)
       .lte("created_at", end);
+
+    if (error) {
+      // Rollback jika gagal
+      setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status: p.status } : x));
+      setToast({ visible: true, message: `Gagal update status: ${error.message}` });
+      return;
+    }
     if (status === "Sedang Diperiksa") playDingDing();
     if (status === "Selesai")          playDingDown();
     if (status === "Tidak Hadir")      setToast({ visible: true, message: `${p.nama} ditandai tidak hadir` });

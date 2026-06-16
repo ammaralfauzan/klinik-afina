@@ -1,15 +1,38 @@
 "use client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Sidebar from "./Sidebar";
 import ThemeToggle from "./ThemeToggle";
 import Image from "next/image";
 import { AudioProvider, MuteButton } from "./AudioNotif";
 import { TourProvider } from "./AppTour";
+import { supabase } from "../../lib/supabase";
 
 const BYPASS_ROUTES = ["/login", "/display", "/daftar-online"];
 
 export default function ThemedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Register service worker
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
+  // Session guard — redirect to login if Supabase session expired
+  useEffect(() => {
+    if (BYPASS_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"))) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        document.cookie = "isLoggedIn=; path=/; max-age=0";
+        localStorage.removeItem("isLoggedIn");
+        router.push("/login");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [pathname, router]);
 
   if (BYPASS_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"))) {
     return <>{children}</>;

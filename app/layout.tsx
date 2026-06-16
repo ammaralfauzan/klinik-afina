@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ThemeProvider from "./components/ThemeProvider";
 import ThemedLayout from "./components/ThemedLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 export const metadata: Metadata = {
   icons: { icon: "/logo-afina.png" },
   title: "Klinik Afina",
   description: "Sistem Manajemen Klinik",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -55,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
           h1, h2, h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+          @media (display-mode: standalone) { body { padding-top: env(safe-area-inset-top); } }
           .mobile-header { display: none; }
           @media (max-width: 768px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -79,7 +82,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <ThemedLayout>{children}</ThemedLayout>
+          <ErrorBoundary>
+            <ThemedLayout>{children}</ThemedLayout>
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

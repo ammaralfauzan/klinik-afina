@@ -1,6 +1,6 @@
 "use client";
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 
 type AudioCtx = {
   muted: boolean;
@@ -8,6 +8,7 @@ type AudioCtx = {
   playDing: () => void;
   playDingDing: () => void;
   playDingDown: () => void;
+  sendPushNotif: (title: string, body: string) => void;
 };
 
 const AudioContext = createContext<AudioCtx | null>(null);
@@ -18,10 +19,7 @@ function makeAudioCtx() {
   } catch { return null; }
 }
 
-function playTone(
-  ctx: AudioContext, freq: number, start: number,
-  duration: number, vol = 0.35
-) {
+function playTone(ctx: AudioContext, freq: number, start: number, duration: number, vol = 0.35) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
@@ -37,10 +35,28 @@ function playTone(
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const [muted, setMuted] = useState(false);
+  const [pushGranted, setPushGranted] = useState(false);
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      setPushGranted(Notification.permission === "granted");
+    }
+  }, []);
 
   const toggleMute = useCallback(() => setMuted(m => !m), []);
 
-  // Pasien baru daftar — soft ding 440hz
+  const sendPushNotif = useCallback((title: string, body: string) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    // Use service worker notification if available, else fallback
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, { body, icon: "/logo-afina.png", tag: "klinik-antrian" });
+      }).catch(() => {});
+    } else {
+      new Notification(title, { body, icon: "/logo-afina.png" });
+    }
+  }, []);
+
   const playDing = useCallback(() => {
     if (muted) return;
     const ctx = makeAudioCtx();
@@ -48,7 +64,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     playTone(ctx, 440, ctx.currentTime, 0.3, 0.3);
   }, [muted]);
 
-  // Dipanggil — ding ding 2x 880hz
   const playDingDing = useCallback(() => {
     if (muted) return;
     const ctx = makeAudioCtx();
@@ -57,7 +72,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     playTone(ctx, 880, ctx.currentTime + 0.35, 0.22, 0.4);
   }, [muted]);
 
-  // Selesai — turun 880 → 440hz
   const playDingDown = useCallback(() => {
     if (muted) return;
     const ctx = makeAudioCtx();
@@ -67,9 +81,55 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [muted]);
 
   return (
-    <AudioContext.Provider value={{ muted, toggleMute, playDing, playDingDing, playDingDown }}>
+    <AudioContext.Provider value={{ muted, toggleMute, playDing, playDingDing, playDingDown, sendPushNotif }}>
       {children}
+      {/* Push notification permission prompt — shown once if not yet granted */}
+      {!pushGranted && "Notification" in window && Notification.permission === "default" && (
+        <PushPermissionBanner onGrant={() => setPushGranted(true)} />
+      )}
     </AudioContext.Provider>
+  );
+}
+
+function PushPermissionBanner({ onGrant }: { onGrant: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <div style={{
+      position: "fixed", bottom: "80px", right: "20px", zIndex: 9000,
+      background: "var(--bg-card)", border: "1px solid var(--border-color)",
+      borderRadius: "14px", padding: "14px 18px", boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+      maxWidth: "300px", display: "flex", flexDirection: "column", gap: "10px",
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+        <Bell size={16} color="var(--accent)" style={{ flexShrink: 0, marginTop: 2 }} />
+        <div>
+          <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Aktifkan Notifikasi</p>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "3px 0 0", lineHeight: 1.5 }}>
+            Terima notifikasi saat ada pasien baru, bahkan ketika tab browser tidak aktif.
+          </p>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button
+          onClick={() => {
+            Notification.requestPermission().then(p => {
+              if (p === "granted") onGrant();
+              setDismissed(true);
+            });
+          }}
+          style={{ flex: 1, background: "var(--accent)", color: "#fff", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+        >
+          Aktifkan
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{ background: "var(--input-bg)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "8px 12px", fontSize: "12px", cursor: "pointer" }}
+        >
+          Nanti
+        </button>
+      </div>
+    </div>
   );
 }
 

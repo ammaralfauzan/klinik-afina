@@ -13,11 +13,19 @@ type RM = {
   id?: string; nomor_antrian: number; visit_date: string;
   pasien_nama: string; pasien_keluhan: string;
   diagnosa: string; tindakan: string; obat: string; catatan: string; dokter: string;
+  td?: string; suhu?: string; berat?: string; tinggi?: string; saturasi?: string;
 };
 
-const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum" };
+const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum", td: "", suhu: "", berat: "", tinggi: "", saturasi: "" };
 
-const DIAGNOSA_CHIPS = ["ISPA", "Gastroenteritis", "Demam Tifoid", "Hipertensi", "Faringitis Akut", "Dermatitis", "Mialgia", "Diabetes Mellitus"];
+// ICD-10 diagnosa chips dengan kode
+const DIAGNOSA_CHIPS = [
+  "J06.9 ISPA", "A09 Gastroenteritis", "A01.0 Demam Tifoid", "I10 Hipertensi",
+  "J02.9 Faringitis Akut", "L30.9 Dermatitis", "M79.3 Mialgia", "E11 Diabetes Mellitus Tipe 2",
+  "J18.9 Pneumonia", "K29.7 Gastritis", "N39.0 ISK", "B01.9 Varicella",
+  "J45.9 Asma Bronkial", "E78.5 Dislipidemia", "K37 Appendisitis", "R50.9 Demam",
+  "R05 Batuk", "J00 Nasofaringitis Akut", "K21.0 GERD", "G43.9 Migrain",
+];
 const TINDAKAN_CHIPS = ["Pemeriksaan Fisik", "Injeksi IM", "Pemasangan Infus", "Rawat Luka", "Nebulisasi", "Cek GDS", "Suntik KB", "Pasang Kateter"];
 const OBAT_CHIPS = [
   "Paracetamol 500mg 3×1",
@@ -150,6 +158,11 @@ export default function RekamMedisPage() {
       obat: modal.rm.obat || "",
       catatan: modal.rm.catatan || "",
       dokter: modal.rm.dokter || "dr. Umum",
+      td: modal.rm.td || "",
+      suhu: modal.rm.suhu || "",
+      berat: modal.rm.berat || "",
+      tinggi: modal.rm.tinggi || "",
+      saturasi: modal.rm.saturasi || "",
       updated_at: new Date().toISOString(),
     };
 
@@ -300,6 +313,21 @@ export default function RekamMedisPage() {
                             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{v.pasien_keluhan}</span>
                             <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-secondary)" }}>{v.dokter}</span>
                           </div>
+                          {(v.td || v.suhu || v.saturasi || v.berat || v.tinggi) && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+                              {[
+                                { label: "TD", val: v.td, unit: "mmHg" },
+                                { label: "Suhu", val: v.suhu, unit: "°C" },
+                                { label: "SpO₂", val: v.saturasi, unit: "%" },
+                                { label: "BB", val: v.berat, unit: "kg" },
+                                { label: "TB", val: v.tinggi, unit: "cm" },
+                              ].filter(x => x.val).map(x => (
+                                <span key={x.label} style={{ fontSize: "11px", background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.15)", borderRadius: "6px", padding: "3px 8px", color: "var(--text-primary)", fontWeight: 600 }}>
+                                  {x.label}: {x.val} {x.unit}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                             {[
                               { label: "Diagnosa", val: v.diagnosa },
@@ -405,6 +433,23 @@ export default function RekamMedisPage() {
                 <p style={{ margin: "2px 0 0", fontWeight: 600, color: "#1A1A2E" }}>{new Date(resepModal.visit_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
               </div>
             </div>
+            {/* Vital signs in resep */}
+            {(resepModal.td || resepModal.suhu || resepModal.saturasi || resepModal.berat || resepModal.tinggi) && (
+              <div style={{ marginBottom: "12px", padding: "8px 0", borderBottom: "1px dashed #ddd" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Tanda Vital</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  {[
+                    { label: "TD", val: resepModal.td, unit: "mmHg" },
+                    { label: "Suhu", val: resepModal.suhu, unit: "°C" },
+                    { label: "SpO₂", val: resepModal.saturasi, unit: "%" },
+                    { label: "BB", val: resepModal.berat, unit: "kg" },
+                    { label: "TB", val: resepModal.tinggi, unit: "cm" },
+                  ].filter(x => x.val).map(x => (
+                    <span key={x.label} style={{ fontSize: "10px", color: "#333" }}>{x.label}: <strong>{x.val} {x.unit}</strong></span>
+                  ))}
+                </div>
+              </div>
+            )}
             {resepModal.diagnosa && (
               <div style={{ background: "#f8f7ff", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px" }}>
                 <p style={{ fontSize: "10px", fontWeight: 700, color: "#6C5CE7", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>Diagnosa</p>
@@ -478,6 +523,31 @@ export default function RekamMedisPage() {
               <div>
                 <label className="rm-label">Dokter Pemeriksa</label>
                 <input className="rm-input" value={modal.rm.dokter || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, dokter: e.target.value } } : m)} placeholder="Nama dokter..." />
+              </div>
+
+              {/* Vital Signs */}
+              <div>
+                <label className="rm-label">Tanda Vital</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                  {[
+                    { key: "td", label: "TD (mmHg)", placeholder: "120/80" },
+                    { key: "suhu", label: "Suhu (°C)", placeholder: "36.5" },
+                    { key: "saturasi", label: "SpO₂ (%)", placeholder: "98" },
+                    { key: "berat", label: "BB (kg)", placeholder: "60" },
+                    { key: "tinggi", label: "TB (cm)", placeholder: "165" },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
+                      <input
+                        className="rm-input"
+                        style={{ padding: "7px 10px" }}
+                        value={(modal.rm as Record<string, string>)[key] || ""}
+                        onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, [key]: e.target.value } } : m)}
+                        placeholder={placeholder}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Diagnosa */}

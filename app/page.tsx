@@ -22,7 +22,7 @@ export default function Home() {
   const [toast, setToast] = useState({ visible: false, message: "" });
   const [weekData, setWeekData] = useState<{ day: string; count: number }[]>([]);
   const [dokterHariIni, setDokterHariIni] = useState("");
-  const { playDing } = useAudio();
+  const { playDing, sendPushNotif } = useAudio();
 
   const fetchPasien = useCallback(async () => {
     const { start, end } = getTodayRange();
@@ -79,6 +79,7 @@ export default function Home() {
           playDing();
           const newPatient = payload.new as Pasien;
           setToast({ visible: true, message: `Pasien baru: ${newPatient.nama}` });
+          sendPushNotif("🏥 Pasien Baru", `${newPatient.nama} · ${newPatient.keluhan}`);
         }
         fetchPasien();
       })

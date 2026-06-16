@@ -1,0 +1,26 @@
+{
+  "name": "Klinik & RB Afina",
+  "short_name": "Klinik Afina",
+  "description": "Sistem Manajemen Klinik & RB Afina",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2E2466",
+  "theme_color": "#6C5CE7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-afina.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-afina.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "productivity"],
+  "lang": "id"
+}

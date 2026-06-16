@@ -58,7 +58,16 @@ ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_bpjs TEXT DEFAULT '';
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nama_asuransi TEXT DEFAULT '';
 
 -- ============================================================
--- LANGKAH 7: Aktifkan RLS (Row Level Security) — PRODUCTION
+-- LANGKAH 7a: Kolom Vital Signs di rekam_medis
+-- ============================================================
+ALTER TABLE rekam_medis ADD COLUMN IF NOT EXISTS td TEXT DEFAULT '';
+ALTER TABLE rekam_medis ADD COLUMN IF NOT EXISTS suhu TEXT DEFAULT '';
+ALTER TABLE rekam_medis ADD COLUMN IF NOT EXISTS berat TEXT DEFAULT '';
+ALTER TABLE rekam_medis ADD COLUMN IF NOT EXISTS tinggi TEXT DEFAULT '';
+ALTER TABLE rekam_medis ADD COLUMN IF NOT EXISTS saturasi TEXT DEFAULT '';
+
+-- ============================================================
+-- LANGKAH 7b: Aktifkan RLS (Row Level Security) — PRODUCTION
 -- Jalankan ini setelah membuat user di Supabase Auth Dashboard
 -- ============================================================
 
