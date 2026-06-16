@@ -3,7 +3,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer } from "lucide-react";
+import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer, CreditCard } from "lucide-react";
+import { validateNIK, validateNomorBPJS } from "../../lib/validation";
 
 const KELUHAN_OPTIONS = [
   "Demam",
@@ -24,6 +25,7 @@ type FormState = {
   tanggal_lahir: string;
   jenis_kelamin: string;
   no_hp: string;
+  nomor_nik: string;
   alamat: string;
   keluhan: string;
   keluhan_lainnya: string;
@@ -42,6 +44,7 @@ const INITIAL_FORM: FormState = {
   tanggal_lahir: "",
   jenis_kelamin: "Laki-laki",
   no_hp: "",
+  nomor_nik: "",
   alamat: "",
   keluhan: "",
   keluhan_lainnya: "",
@@ -76,6 +79,8 @@ function formatHP(raw: string): string {
 
 function validate(form: FormState): Errors {
   const errs: Errors = {};
+
+  // Nama
   const namaClean = form.nama.trim();
   if (!namaClean) {
     errs.nama = "Nama wajib diisi.";
@@ -85,31 +90,47 @@ function validate(form: FormState): Errors {
     errs.nama = "Nama hanya boleh berisi huruf dan spasi.";
   }
 
+  // Tanggal lahir
   if (!form.tanggal_lahir) {
     errs.tanggal_lahir = "Tanggal lahir wajib diisi.";
   } else if (new Date(form.tanggal_lahir) > new Date()) {
     errs.tanggal_lahir = "Tanggal lahir tidak boleh di masa depan.";
   }
 
-  const digits = form.no_hp.replace(/\D/g, "");
+  // NIK — cross-check dengan tanggal lahir
+  const nikErr = validateNIK(form.nomor_nik, form.tanggal_lahir);
+  if (nikErr) errs.nomor_nik = nikErr;
+
+  // No HP — format + prefix Indonesia
+  const hpDigits = form.no_hp.replace(/\D/g, "");
   if (!form.no_hp) {
     errs.no_hp = "No HP wajib diisi.";
-  } else if (digits.length < 10) {
+  } else if (hpDigits.length < 10) {
     errs.no_hp = "No HP minimal 10 digit.";
-  } else if (digits.length > 13) {
+  } else if (hpDigits.length > 13) {
     errs.no_hp = "No HP maksimal 13 digit.";
+  } else if (!/^(08|628)/.test(hpDigits)) {
+    errs.no_hp = "Awalan HP harus 08 atau +62.";
   }
 
+  // Alamat
   if (!form.alamat.trim()) {
     errs.alamat = "Alamat wajib diisi.";
   } else if (form.alamat.trim().length < 10) {
     errs.alamat = "Alamat minimal 10 karakter.";
   }
 
+  // Keluhan
   if (!form.keluhan) {
     errs.keluhan = "Keluhan wajib dipilih.";
   } else if (form.keluhan === "Lainnya" && !form.keluhan_lainnya.trim()) {
     errs.keluhan_lainnya = "Mohon deskripsikan keluhan Anda.";
+  }
+
+  // BPJS — harus 13 digit
+  if (form.jenis_pembayaran === "BPJS") {
+    const bpjsErr = validateNomorBPJS(form.nomor_bpjs);
+    if (bpjsErr) errs.nomor_bpjs = bpjsErr;
   }
 
   return errs;
@@ -148,9 +169,10 @@ export default function PasienPage() {
   const jenisRef = useRef<HTMLDivElement>(null);
   const [slip, setSlip] = useState<{ nomor: number; nama: string; keluhan: string; waktu: string; nomor_rm: string; no_hp: string; jenis_pembayaran: string } | null>(null);
   const [searchQ, setSearchQ] = useState("");
-  const [searchRes, setSearchRes] = useState<Array<{ nama: string; tanggal_lahir?: string; jenis_kelamin?: string; no_hp?: string; alamat?: string }>>([]);
+  const [searchRes, setSearchRes] = useState<Array<{ nama: string; tanggal_lahir?: string; jenis_kelamin?: string; no_hp?: string; alamat?: string; nomor_nik?: string }>>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const [cooldown, setCooldown] = useState(0);
 
   // ── Schema check on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -185,12 +207,18 @@ export default function PasienPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   // Debounced patient search
   useEffect(() => {
     if (!searchQ.trim()) { setSearchRes([]); return; }
     const t = setTimeout(async () => {
       const { data } = await supabase.from("pasien")
-        .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat, jenis_pembayaran, nomor_bpjs, nama_asuransi")
+        .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat, nomor_nik, jenis_pembayaran, nomor_bpjs, nama_asuransi")
         .or(`nama.ilike.%${searchQ.trim()}%,no_hp.ilike.%${searchQ.trim()}%`)
         .order("created_at", { ascending: false })
         .limit(30);
@@ -209,7 +237,7 @@ export default function PasienPage() {
   }, [searchQ]);
 
   function fillFromPatient(p: typeof searchRes[0] & { jenis_pembayaran?: string; nomor_bpjs?: string; nama_asuransi?: string }) {
-    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "", jenis_pembayaran: p.jenis_pembayaran || "Umum", nomor_bpjs: p.nomor_bpjs || "", nama_asuransi: p.nama_asuransi || "" });
+    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), nomor_nik: p.nomor_nik || "", alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "", jenis_pembayaran: p.jenis_pembayaran || "Umum", nomor_bpjs: p.nomor_bpjs || "", nama_asuransi: p.nama_asuransi || "" });
     setErrors({}); setTouched({}); setSearchQ(""); setSearchRes([]); setSearchOpen(false);
   }
 
@@ -270,6 +298,24 @@ export default function PasienPage() {
 
     setLoading(true);
     try {
+      // Dedup: cegah 1 NIK daftar lebih dari sekali per hari
+      const nikClean = form.nomor_nik.replace(/\D/g, "");
+      if (nikClean) {
+        const { start: tdS, end: tdE } = getTodayRange();
+        const { data: dupNIK } = await supabase
+          .from("pasien")
+          .select("nomor_antrian")
+          .eq("nomor_nik", nikClean)
+          .gte("created_at", tdS)
+          .lte("created_at", tdE)
+          .limit(1);
+        if (dupNIK && dupNIK.length > 0) {
+          showToast("error", `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
+          setLoading(false);
+          return;
+        }
+      }
+
       // 1. Nomor antrian hari ini
       const { start: todayStart, end: todayEnd } = getTodayRange();
       const { data: lastData, error: seqError } = await supabase
@@ -335,8 +381,9 @@ export default function PasienPage() {
         jenis_kelamin: form.jenis_kelamin,
         alamat: form.alamat.trim(),
         no_hp: form.no_hp.replace(/\D/g, ""),
+        nomor_nik: form.nomor_nik.replace(/\D/g, ""),
         jenis_pembayaran: form.jenis_pembayaran,
-        nomor_bpjs: form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.trim() : "",
+        nomor_bpjs: form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.replace(/\D/g, "") : "",
         nama_asuransi: form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
         nomor_rm: nomorRM,
         status: "Menunggu",
@@ -397,6 +444,7 @@ export default function PasienPage() {
         setErrors({});
         setTouched({});
         setSchemaStatus("ok");
+        setCooldown(10);
       }
     } catch (err: unknown) {
       console.error("[pasien] unexpected error:", err);
@@ -858,6 +906,25 @@ export default function PasienPage() {
               <FieldError msg={touched.no_hp ? errors.no_hp : undefined} />
             </div>
 
+            {/* NIK */}
+            <div className="form-full">
+              <label style={labelStyle}>NIK (No. KTP) <Req /></label>
+              <div style={{ position: "relative" }}>
+                <CreditCard size={14} color="var(--text-secondary)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input
+                  className={`form-input${touched.nomor_nik && errors.nomor_nik ? " has-error" : ""}`}
+                  placeholder="16 digit NIK — Anak < 17 tahun: gunakan NIK orang tua"
+                  inputMode="numeric"
+                  maxLength={16}
+                  value={form.nomor_nik}
+                  style={{ paddingLeft: "36px" }}
+                  onChange={e => updateField("nomor_nik", e.target.value.replace(/\D/g, "").slice(0, 16))}
+                  onBlur={() => touch("nomor_nik")}
+                />
+              </div>
+              <FieldError msg={touched.nomor_nik ? errors.nomor_nik : undefined} />
+            </div>
+
             {/* Alamat */}
             <div className="form-full">
               <label style={labelStyle}>Alamat <Req /></label>
@@ -924,8 +991,17 @@ export default function PasienPage() {
 
             {form.jenis_pembayaran === "BPJS" && (
               <div>
-                <label style={labelStyle}>Nomor BPJS / NIK</label>
-                <input className="form-input" placeholder="Masukkan nomor kartu BPJS atau NIK..." value={form.nomor_bpjs} onChange={e => updateField("nomor_bpjs", e.target.value)} />
+                <label style={labelStyle}>Nomor BPJS <Req /></label>
+                <input
+                  className={`form-input${touched.nomor_bpjs && errors.nomor_bpjs ? " has-error" : ""}`}
+                  placeholder="13 digit nomor kartu BPJS"
+                  inputMode="numeric"
+                  maxLength={13}
+                  value={form.nomor_bpjs}
+                  onChange={e => updateField("nomor_bpjs", e.target.value.replace(/\D/g, "").slice(0, 13))}
+                  onBlur={() => touch("nomor_bpjs")}
+                />
+                <FieldError msg={touched.nomor_bpjs ? errors.nomor_bpjs : undefined} />
               </div>
             )}
 
@@ -941,7 +1017,7 @@ export default function PasienPage() {
               <button
                 className="submit-btn"
                 onClick={handleSubmit}
-                disabled={loading || schemaStatus === "checking" || schemaStatus === "conn_error"}
+                disabled={loading || cooldown > 0 || schemaStatus === "checking" || schemaStatus === "conn_error"}
                 style={{
                   background: "var(--accent)", border: "none", borderRadius: "12px",
                   padding: "13px", color: "#fff", fontSize: "14px", fontWeight: 700,
@@ -954,6 +1030,8 @@ export default function PasienPage() {
                     <span style={{ width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />
                     Mendaftarkan...
                   </>
+                ) : cooldown > 0 ? (
+                  `Tunggu ${cooldown} detik...`
                 ) : schemaStatus === "checking" ? (
                   <>
                     <span style={{ width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />

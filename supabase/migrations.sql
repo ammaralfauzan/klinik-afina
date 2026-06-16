@@ -150,3 +150,58 @@ $$;
 
 -- Beri akses ke role yang dipakai aplikasi
 GRANT EXECUTE ON FUNCTION daftar_pasien(jsonb) TO anon, authenticated;
+
+-- ============================================================
+-- LANGKAH 9: Kolom NIK + index dedup + perbarui RPC
+-- Jalankan setelah Langkah 8.
+-- ============================================================
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_nik TEXT DEFAULT '';
+
+-- Index supaya cek dedup NIK per-hari cepat
+CREATE INDEX IF NOT EXISTS idx_pasien_nomor_nik ON pasien(nomor_nik);
+
+-- Perbarui RPC agar menyimpan nomor_nik
+CREATE OR REPLACE FUNCTION daftar_pasien(data jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  no_baru      int;
+  day_start    timestamptz := (data->>'day_start')::timestamptz;
+  day_end      timestamptz := (data->>'day_end')::timestamptz;
+  inserted     pasien;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('antrian:' || day_start::text));
+
+  SELECT COALESCE(MAX(nomor_antrian), 0) + 1
+    INTO no_baru
+    FROM pasien
+   WHERE created_at >= day_start AND created_at <= day_end;
+
+  INSERT INTO pasien (
+    nomor_antrian, nama, keluhan, tanggal_lahir, jenis_kelamin,
+    alamat, no_hp, nomor_nik, jenis_pembayaran, nomor_bpjs, nama_asuransi,
+    nomor_rm, status, created_at
+  ) VALUES (
+    no_baru,
+    data->>'nama',
+    data->>'keluhan',
+    NULLIF(data->>'tanggal_lahir', '')::date,
+    COALESCE(data->>'jenis_kelamin', 'Laki-laki'),
+    COALESCE(data->>'alamat', ''),
+    COALESCE(data->>'no_hp', ''),
+    COALESCE(data->>'nomor_nik', ''),
+    COALESCE(data->>'jenis_pembayaran', 'Umum'),
+    COALESCE(data->>'nomor_bpjs', ''),
+    COALESCE(data->>'nama_asuransi', ''),
+    COALESCE(data->>'nomor_rm', ''),
+    COALESCE(data->>'status', 'Menunggu'),
+    COALESCE(NULLIF(data->>'created_at', '')::timestamptz, now())
+  )
+  RETURNING * INTO inserted;
+
+  RETURN to_jsonb(inserted);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION daftar_pasien(jsonb) TO anon, authenticated;
