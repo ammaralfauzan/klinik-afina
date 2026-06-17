@@ -2,10 +2,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { validateNama, validateNoHp, validateNIK, validateNomorBPJS, normalizeName } from "../../lib/validation";
+import { validateNoHp, validateNIK, validateNomorBPJS, normalizeName } from "../../lib/validation";
 import {
   CheckCircle, Clock, Users, ChevronRight,
-  Phone, User, Calendar, AlertCircle, Share2, CreditCard,
+  Phone, User, Calendar, AlertCircle, Share2, CreditCard, Pencil,
 } from "lucide-react";
 
 const KELUHAN_CHIPS = [
@@ -16,6 +16,17 @@ const KELUHAN_CHIPS = [
 ];
 
 type Step = "form" | "submitting" | "success";
+
+type ExistingReg = {
+  nomor_antrian: number;
+  status: string;
+  nama: string;
+  keluhan: string;
+  no_hp: string;
+  jenis_pembayaran: string;
+  nomor_bpjs: string;
+  nama_asuransi: string;
+};
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 
@@ -35,6 +46,9 @@ export default function DaftarOnlinePage() {
   const [error, setError]             = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [cooldown, setCooldown]       = useState(0);
+  const [editMode, setEditMode]       = useState(false);
+  const [existingReg, setExistingReg] = useState<ExistingReg | null>(null);
+  const [successType, setSuccessType] = useState<"baru" | "edit">("baru");
 
   const [form, setForm] = useState({
     nama: "", no_hp: "", nomor_nik: "",
@@ -75,9 +89,8 @@ export default function DaftarOnlinePage() {
 
   function runValidation(): Record<string, string> {
     const errs: Record<string, string> = {};
-
-    const namaErr = validateNama(form.nama);
-    if (namaErr) errs.nama = namaErr;
+    if (!form.nama.trim()) errs.nama = "Nama wajib diisi";
+    else if (form.nama.trim().length < 3) errs.nama = "Nama minimal 3 karakter";
 
     if (!form.tanggal_lahir) {
       errs.tanggal_lahir = "Tanggal lahir wajib diisi untuk verifikasi NIK";
@@ -106,6 +119,23 @@ export default function DaftarOnlinePage() {
     return errs;
   }
 
+  function runEditValidation(): Record<string, string> {
+    const errs: Record<string, string> = {};
+    const hpErr = validateNoHp(form.no_hp);
+    if (hpErr) errs.no_hp = hpErr;
+    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
+    if (!keluhanFinal) errs.keluhan = "Pilih keluhan utama";
+    if (form.keluhan === "Lainnya" && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
+    if (form.jenis_pembayaran === "BPJS") {
+      const bpjsErr = validateNomorBPJS(form.nomor_bpjs);
+      if (bpjsErr) errs.nomor_bpjs = bpjsErr;
+    }
+    if (form.jenis_pembayaran === "Asuransi Swasta" && !form.nama_asuransi.trim()) {
+      errs.nama_asuransi = "Nama asuransi & nomor polis wajib diisi";
+    }
+    return errs;
+  }
+
   async function handleSubmit() {
     const errs = runValidation();
     if (Object.keys(errs).length > 0) {
@@ -118,26 +148,48 @@ export default function DaftarOnlinePage() {
     setStep("submitting");
 
     const { start, end } = getTodayRange();
-
-    // Dedup: 1 NIK per hari
     const nikClean = form.nomor_nik.replace(/\D/g, "");
+
+    // Dedup: 1 NIK per hari — cek apakah sudah ada pendaftaran
     const { data: dupNIK } = await supabase
       .from("pasien")
-      .select("nomor_antrian")
+      .select("nomor_antrian, status, nama, keluhan, no_hp, jenis_pembayaran, nomor_bpjs, nama_asuransi")
       .eq("nomor_nik", nikClean)
       .gte("created_at", start)
       .lte("created_at", end)
       .limit(1);
 
     if (dupNIK && dupNIK.length > 0) {
-      setError(
-        `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
-        `Jika ada kesalahan, hubungi petugas klinik.`
-      );
+      const existing = dupNIK[0] as ExistingReg;
+      if (existing.status !== "Menunggu") {
+        // Sudah dipanggil/selesai — tidak bisa edit
+        setError(
+          `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(existing.nomor_antrian)} ` +
+          `(status: ${existing.status}). Hubungi petugas klinik jika ada kesalahan.`
+        );
+        setStep("form");
+        return;
+      }
+      // Masih menunggu — tawarkan edit
+      setExistingReg(existing);
+      setEditMode(true);
+      setForm(f => ({
+        ...f,
+        nama: existing.nama,
+        keluhan: KELUHAN_CHIPS.includes(existing.keluhan) ? existing.keluhan : "Lainnya",
+        keluhan_custom: KELUHAN_CHIPS.includes(existing.keluhan) ? "" : existing.keluhan,
+        no_hp: formatHP(existing.no_hp),
+        jenis_pembayaran: (existing.jenis_pembayaran || "Umum") as "Umum" | "BPJS" | "Asuransi Swasta",
+        nomor_bpjs: existing.nomor_bpjs || "",
+        nama_asuransi: existing.nama_asuransi || "",
+      }));
+      setFieldErrors({});
+      setError("");
       setStep("form");
       return;
     }
 
+    // Belum ada — daftar baru
     const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
 
     const { data: todayData } = await supabase
@@ -187,8 +239,50 @@ export default function DaftarOnlinePage() {
       setStep("form");
     } else {
       setResult({ nomor, nama: form.nama.trim() });
+      setSuccessType("baru");
       setStep("success");
       setCooldown(COOLDOWN_SECS);
+      fetchStatus();
+    }
+  }
+
+  async function handleUpdate() {
+    if (!existingReg) return;
+    const errs = runEditValidation();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setError("Mohon periksa kembali data yang diisi.");
+      return;
+    }
+    setFieldErrors({});
+    setError("");
+    setStep("submitting");
+
+    const { start, end } = getTodayRange();
+    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
+
+    const { error: updErr } = await supabase
+      .from("pasien")
+      .update({
+        keluhan:          keluhanFinal,
+        no_hp:            form.no_hp.replace(/\D/g, ""),
+        jenis_pembayaran: form.jenis_pembayaran,
+        nomor_bpjs:       form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.replace(/\D/g, "") : "",
+        nama_asuransi:    form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
+      })
+      .eq("nomor_antrian", existingReg.nomor_antrian)
+      .gte("created_at", start)
+      .lte("created_at", end);
+
+    if (updErr) {
+      setError("Gagal memperbarui: " + updErr.message);
+      setStep("form");
+    } else {
+      setResult({ nomor: existingReg.nomor_antrian, nama: existingReg.nama });
+      setSuccessType("edit");
+      setStep("success");
+      setEditMode(false);
+      setExistingReg(null);
       fetchStatus();
     }
   }
@@ -206,6 +300,8 @@ export default function DaftarOnlinePage() {
     setFieldErrors({});
     setError("");
     setResult(null);
+    setEditMode(false);
+    setExistingReg(null);
     setStep("form");
   }
 
@@ -225,6 +321,7 @@ export default function DaftarOnlinePage() {
   }
 
   const isDisabled = step === "submitting" || cooldown > 0;
+  const lockedStyle: React.CSSProperties = { background: "#F0F0F0", color: "#999", cursor: "not-allowed" };
 
   return (
     <div style={{
@@ -237,7 +334,7 @@ export default function DaftarOnlinePage() {
         * { box-sizing: border-box; }
         .dol-card { background: rgba(255,255,255,0.97); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
         .dol-input { width: 100%; background: #F5F4FF; border: 1.5px solid #E0DFFF; border-radius: 12px; padding: 12px 16px 12px 42px; font-size: 14px; color: #1A1A2E; outline: none; transition: border 0.2s; font-family: inherit; }
-        .dol-input:focus { border-color: #7B61FF; background: #fff; }
+        .dol-input:focus:not([readonly]) { border-color: #7B61FF; background: #fff; }
         .dol-input::placeholder { color: #aaa; }
         .dol-input-plain { padding-left: 16px; }
         .dol-input.err { border-color: #ef4444; background: rgba(239,68,68,0.04); }
@@ -249,6 +346,8 @@ export default function DaftarOnlinePage() {
         .dol-submit { width: 100%; background: linear-gradient(135deg, #7B61FF, #9B8AFF); border: none; border-radius: 14px; padding: 15px; font-size: 15px; font-weight: 700; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; margin-top: 8px; font-family: inherit; }
         .dol-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(123,97,255,0.45); }
         .dol-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .dol-submit.edit-mode { background: linear-gradient(135deg, #059669, #10b981); }
+        .dol-submit.edit-mode:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(16,185,129,0.45); }
         .gender-btn { flex: 1; border: 1.5px solid #E0DFFF; background: #F8F7FF; border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; transition: all 0.15s; font-family: inherit; }
         .gender-btn.active { border-color: #7B61FF; background: #EDE9FF; color: #7B61FF; }
         @keyframes popIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
@@ -295,7 +394,9 @@ export default function DaftarOnlinePage() {
             <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "rgba(16,185,129,0.1)", border: "2px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <CheckCircle size={36} color="#10b981" strokeWidth={1.5} />
             </div>
-            <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 4px" }}>Pendaftaran Berhasil!</p>
+            <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 4px" }}>
+              {successType === "edit" ? "Pendaftaran Diperbarui!" : "Pendaftaran Berhasil!"}
+            </p>
             <p style={{ fontSize: "28px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 4px" }}>{result.nama}</p>
             <p style={{ fontSize: "13px", color: "#6b7280", margin: 0 }}>Nomor Antrian Anda</p>
           </div>
@@ -308,7 +409,9 @@ export default function DaftarOnlinePage() {
           <div style={{ background: "#FFF9ED", border: "1px solid #FDE68A", borderRadius: "12px", padding: "14px 16px", marginBottom: "20px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
             <AlertCircle size={15} color="#d97706" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: "12px", color: "#92400e", margin: 0, lineHeight: 1.5 }}>
-              Silakan datang ke klinik dan tunjukkan nomor antrian ini kepada petugas. Antrian hangus jika tidak hadir.
+              {successType === "edit"
+                ? "Data pendaftaran Anda telah diperbarui. Nomor antrian tidak berubah."
+                : "Silakan datang ke klinik dan tunjukkan nomor antrian ini kepada petugas. Antrian hangus jika tidak hadir."}
             </p>
           </div>
 
@@ -335,8 +438,25 @@ export default function DaftarOnlinePage() {
       {/* Form */}
       {(step === "form" || step === "submitting") && (
         <div className="dol-card">
-          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 4px" }}>Formulir Pendaftaran</h2>
-          <p style={{ fontSize: "12px", color: "#888", margin: "0 0 20px" }}>Data diverifikasi menggunakan NIK — 1 antrian per orang per hari</p>
+          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 4px" }}>
+            {editMode ? "Edit Pendaftaran" : "Formulir Pendaftaran"}
+          </h2>
+          <p style={{ fontSize: "12px", color: "#888", margin: "0 0 20px" }}>
+            {editMode && existingReg
+              ? `No. Antrian ${padNo(existingReg.nomor_antrian)} — ubah data yang perlu diperbaiki`
+              : "Data diverifikasi menggunakan NIK — 1 antrian per orang per hari"}
+          </p>
+
+          {/* Edit mode banner */}
+          {editMode && existingReg && (
+            <div style={{ background: "#EDE9FF", border: "1px solid #C4B5FD", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+              <Pencil size={14} color="#7B61FF" style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: "12px", color: "#5B21B6", margin: 0, lineHeight: 1.6 }}>
+                <strong>Mode Edit</strong> — Nama, NIK, dan tanggal lahir tidak dapat diubah.
+                Nomor antrian tetap <strong>{padNo(existingReg.nomor_antrian)}</strong>.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
@@ -349,14 +469,19 @@ export default function DaftarOnlinePage() {
 
             {/* Nama */}
             <div>
-              <label className="dol-label">Nama Lengkap *</label>
+              <label className="dol-label">
+                Nama Lengkap *
+                {editMode && <span style={{ fontWeight: 400, color: "#aaa", marginLeft: 6, textTransform: "none", letterSpacing: 0 }}>🔒</span>}
+              </label>
               <div style={{ position: "relative" }}>
                 <User size={15} color="#aaa" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
                   className={`dol-input${fieldErrors.nama ? " err" : ""}`}
                   placeholder="Nama sesuai KTP"
                   value={form.nama}
-                  onChange={e => { setForm(f => ({ ...f, nama: e.target.value })); clearErr("nama"); }}
+                  readOnly={editMode}
+                  style={editMode ? lockedStyle : undefined}
+                  onChange={e => { if (!editMode) { setForm(f => ({ ...f, nama: e.target.value })); clearErr("nama"); } }}
                 />
               </div>
               <FieldErr field="nama" />
@@ -366,9 +491,10 @@ export default function DaftarOnlinePage() {
             <div>
               <label className="dol-label">
                 Tanggal Lahir *{" "}
-                <span style={{ fontSize: "10px", fontWeight: 500, color: "#999", textTransform: "none", letterSpacing: 0 }}>
-                  (wajib untuk verifikasi NIK)
-                </span>
+                {editMode
+                  ? <span style={{ fontWeight: 400, color: "#aaa", textTransform: "none", letterSpacing: 0 }}>🔒</span>
+                  : <span style={{ fontSize: "10px", fontWeight: 500, color: "#999", textTransform: "none", letterSpacing: 0 }}>(wajib untuk verifikasi NIK)</span>
+                }
               </label>
               <div style={{ position: "relative" }}>
                 <Calendar size={15} color="#aaa" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -377,7 +503,10 @@ export default function DaftarOnlinePage() {
                   type="date"
                   max={new Date().toISOString().split("T")[0]}
                   value={form.tanggal_lahir}
+                  readOnly={editMode}
+                  style={editMode ? lockedStyle : undefined}
                   onChange={e => {
+                    if (editMode) return;
                     setForm(f => ({ ...f, tanggal_lahir: e.target.value }));
                     clearErr("tanggal_lahir");
                     clearErr("nomor_nik");
@@ -389,7 +518,10 @@ export default function DaftarOnlinePage() {
 
             {/* NIK */}
             <div>
-              <label className="dol-label">NIK (Nomor KTP) *</label>
+              <label className="dol-label">
+                NIK (Nomor KTP) *
+                {editMode && <span style={{ fontWeight: 400, color: "#aaa", marginLeft: 6, textTransform: "none", letterSpacing: 0 }}>🔒</span>}
+              </label>
               <div style={{ position: "relative" }}>
                 <CreditCard size={15} color="#aaa" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
@@ -398,7 +530,10 @@ export default function DaftarOnlinePage() {
                   inputMode="numeric"
                   maxLength={16}
                   value={form.nomor_nik}
+                  readOnly={editMode}
+                  style={editMode ? lockedStyle : undefined}
                   onChange={e => {
+                    if (editMode) return;
                     const v = e.target.value.replace(/\D/g, "").slice(0, 16);
                     setForm(f => ({ ...f, nomor_nik: v }));
                     clearErr("nomor_nik");
@@ -406,9 +541,11 @@ export default function DaftarOnlinePage() {
                 />
               </div>
               <FieldErr field="nomor_nik" />
-              <p style={{ fontSize: "10px", color: "#aaa", margin: "4px 0 0" }}>
-                Anak &lt; 17 tahun: gunakan NIK dari Kartu Keluarga (KK), atau NIK orang tua
-              </p>
+              {!editMode && (
+                <p style={{ fontSize: "10px", color: "#aaa", margin: "4px 0 0" }}>
+                  Anak &lt; 17 tahun: gunakan NIK dari Kartu Keluarga (KK), atau NIK orang tua
+                </p>
+              )}
             </div>
 
             {/* No HP */}
@@ -427,21 +564,23 @@ export default function DaftarOnlinePage() {
               <FieldErr field="no_hp" />
             </div>
 
-            {/* Jenis Kelamin */}
-            <div>
-              <label className="dol-label">Jenis Kelamin</label>
-              <div style={{ display: "flex", gap: "8px" }}>
-                {(["Laki-laki", "Perempuan"] as const).map(g => (
-                  <button
-                    key={g}
-                    className={`gender-btn${form.jenis_kelamin === g ? " active" : ""}`}
-                    onClick={() => setForm(f => ({ ...f, jenis_kelamin: g }))}
-                  >
-                    {g === "Laki-laki" ? "👨 Laki-laki" : "👩 Perempuan"}
-                  </button>
-                ))}
+            {/* Jenis Kelamin — sembunyikan di edit mode (tidak perlu diubah) */}
+            {!editMode && (
+              <div>
+                <label className="dol-label">Jenis Kelamin</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {(["Laki-laki", "Perempuan"] as const).map(g => (
+                    <button
+                      key={g}
+                      className={`gender-btn${form.jenis_kelamin === g ? " active" : ""}`}
+                      onClick={() => setForm(f => ({ ...f, jenis_kelamin: g }))}
+                    >
+                      {g === "Laki-laki" ? "👨 Laki-laki" : "👩 Perempuan"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Keluhan */}
             <div>
@@ -523,17 +662,19 @@ export default function DaftarOnlinePage() {
           </div>
 
           <button
-            className="dol-submit"
-            onClick={handleSubmit}
+            className={`dol-submit${editMode ? " edit-mode" : ""}`}
+            onClick={editMode ? handleUpdate : handleSubmit}
             disabled={isDisabled}
           >
             {step === "submitting" ? (
               <>
                 <span className="spin" style={{ width: "16px", height: "16px", border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block" }} />
-                Mendaftarkan...
+                {editMode ? "Memperbarui..." : "Mendaftarkan..."}
               </>
             ) : cooldown > 0 ? (
               `Tunggu ${cooldown} detik...`
+            ) : editMode ? (
+              <>Perbarui Pendaftaran <ChevronRight size={16} /></>
             ) : (
               <>Ambil Nomor Antrian <ChevronRight size={16} /></>
             )}
@@ -543,6 +684,15 @@ export default function DaftarOnlinePage() {
             <div className="cdbar">
               <div className="cdbar-fill" style={{ width: `${(cooldown / COOLDOWN_SECS) * 100}%` }} />
             </div>
+          )}
+
+          {editMode && (
+            <button
+              onClick={daftarLagi}
+              style={{ width: "100%", background: "none", border: "none", color: "#aaa", fontSize: "12px", marginTop: "10px", cursor: "pointer", fontFamily: "inherit", padding: "4px" }}
+            >
+              Batal edit
+            </button>
           )}
 
           <p style={{ fontSize: "11px", color: "#aaa", textAlign: "center", margin: "12px 0 0", lineHeight: 1.5 }}>
