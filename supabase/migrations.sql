@@ -812,3 +812,25 @@ CREATE POLICY "staff_all_rekam_medis" ON rekam_medis FOR ALL TO authenticated
 --   CREATE POLICY "authenticated_all_rekam_medis" ON rekam_medis FOR ALL TO authenticated USING (true) WITH CHECK (true);
 -- lalu beri tahu saya email login Anda yang benar.
 -- ============================================================
+
+-- ============================================================
+-- LANGKAH 14: amankan tabel pengaturan (lihat JALANKAN_LANGKAH_14.sql)
+-- ============================================================
+-- Aman dijalankan ulang (idempotent). Butuh is_staff() dari Langkah 13b.
+-- ============================================================
+
+ALTER TABLE pengaturan ENABLE ROW LEVEL SECURITY;
+
+-- Cabut semua akses langsung anon (anon tidak butuh tabel ini sama sekali).
+REVOKE ALL ON pengaturan FROM anon;
+
+-- Hanya staf allowlist yang boleh baca/tulis.
+DROP POLICY IF EXISTS "staff_all_pengaturan" ON pengaturan;
+CREATE POLICY "staff_all_pengaturan" ON pengaturan FOR ALL TO authenticated
+  USING ( is_staff() ) WITH CHECK ( is_staff() );
+
+-- ============================================================
+-- VERIFIKASI: setelah Run, anon harus DITOLAK:
+--   (dari luar) GET /rest/v1/pengaturan -> 401/permission denied
+-- Admin (login) tetap bisa buka halaman Pengaturan seperti biasa.
+-- ============================================================
