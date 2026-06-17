@@ -261,21 +261,22 @@ export default function DaftarOnlinePage() {
     const { start, end } = getTodayRange();
     const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
 
-    const { error: updErr } = await supabase
-      .from("pasien")
-      .update({
-        keluhan:          keluhanFinal,
-        no_hp:            form.no_hp.replace(/\D/g, ""),
-        jenis_pembayaran: form.jenis_pembayaran,
-        nomor_bpjs:       form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.replace(/\D/g, "") : "",
-        nama_asuransi:    form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
-      })
-      .eq("nomor_antrian", existingReg.nomor_antrian)
-      .gte("created_at", start)
-      .lte("created_at", end);
+    // Gunakan RPC SECURITY DEFINER agar anon bisa update baris miliknya
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc("edit_pendaftaran", {
+      p_nomor_nik:        form.nomor_nik.replace(/\D/g, ""),
+      p_nomor_antrian:    existingReg.nomor_antrian,
+      p_keluhan:          keluhanFinal,
+      p_no_hp:            form.no_hp.replace(/\D/g, ""),
+      p_jenis_pembayaran: form.jenis_pembayaran,
+      p_nomor_bpjs:       form.jenis_pembayaran === "BPJS" ? form.nomor_bpjs.replace(/\D/g, "") : "",
+      p_nama_asuransi:    form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
+      p_day_start:        start,
+      p_day_end:          end,
+    });
 
-    if (updErr) {
-      setError("Gagal memperbarui: " + updErr.message);
+    const rpcError = (rpcResult as { error?: string } | null)?.error;
+    if (rpcErr || rpcError) {
+      setError("Gagal memperbarui: " + (rpcErr?.message || rpcError || "Data tidak ditemukan"));
       setStep("form");
     } else {
       setResult({ nomor: existingReg.nomor_antrian, nama: existingReg.nama });

@@ -80,6 +80,15 @@ export default function AntrianPage() {
     const prevStatus = p.status;
     setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status } : x));
 
+    // Pastikan sesi admin masih valid
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status: prevStatus } : x));
+      setToast({ visible: true, message: "Sesi login habis — silakan login ulang." });
+      setTimeout(() => { window.location.href = "/login"; }, 1500);
+      return;
+    }
+
     const { start, end } = getTodayRange();
     const { data: updated, error } = await supabase
       .from("pasien")
