@@ -205,3 +205,214 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION daftar_pasien(jsonb) TO anon, authenticated;
+
+-- ============================================================
+-- LANGKAH 10: edit_pendaftaran — anon edit pendaftaran miliknya
+-- (versi resmi, version-controlled. Sebelumnya hanya ada di DB.)
+-- SECURITY DEFINER + gate: NIK harus cocok dengan baris nomor_antrian
+-- hari ini, dan status masih "Menunggu".
+-- ============================================================
+CREATE OR REPLACE FUNCTION edit_pendaftaran(
+  p_nomor_nik        text,
+  p_nomor_antrian    int,
+  p_keluhan          text,
+  p_no_hp            text,
+  p_jenis_pembayaran text,
+  p_nomor_bpjs       text,
+  p_nama_asuransi    text,
+  p_day_start        timestamptz,
+  p_day_end          timestamptz
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  target  pasien;
+BEGIN
+  -- Cari baris milik NIK ini, di nomor antrian ini, hari ini
+  SELECT * INTO target
+    FROM pasien
+   WHERE nomor_antrian = p_nomor_antrian
+     AND nomor_nik     = p_nomor_nik
+     AND created_at >= p_day_start AND created_at <= p_day_end
+   LIMIT 1;
+
+  IF target IS NULL THEN
+    RETURN jsonb_build_object('error', 'Data pendaftaran tidak ditemukan.');
+  END IF;
+
+  IF target.status <> 'Menunggu' THEN
+    RETURN jsonb_build_object('error', 'Pendaftaran sudah diproses, tidak bisa diubah.');
+  END IF;
+
+  UPDATE pasien SET
+    keluhan          = p_keluhan,
+    no_hp            = p_no_hp,
+    jenis_pembayaran = p_jenis_pembayaran,
+    nomor_bpjs       = p_nomor_bpjs,
+    nama_asuransi    = p_nama_asuransi
+  WHERE nomor_antrian = p_nomor_antrian
+    AND nomor_nik     = p_nomor_nik
+    AND created_at >= p_day_start AND created_at <= p_day_end
+  RETURNING * INTO target;
+
+  RETURN to_jsonb(target);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION edit_pendaftaran(
+  text, int, text, text, text, text, text, timestamptz, timestamptz
+) TO anon, authenticated;
+
+-- ============================================================
+-- LANGKAH 11: AKTIFKAN RLS DENGAN BENAR (anti kebocoran data pasien)
+-- Setelah langkah ini, anon (publik) TIDAK bisa lagi membaca NIK,
+-- alamat, no HP, atau BPJS pasien lain. Pendaftaran online tetap
+-- jalan lewat RPC SECURITY DEFINER di bawah.
+-- ============================================================
+
+-- 11a. daftar_pasien: jadikan SECURITY DEFINER + dedup NIK atomik
+--      (cek duplikat di dalam lock agar 2 request NIK sama tak lolos).
+CREATE OR REPLACE FUNCTION daftar_pasien(data jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  no_baru      int;
+  day_start    timestamptz := (data->>'day_start')::timestamptz;
+  day_end      timestamptz := (data->>'day_end')::timestamptz;
+  nik_in       text        := COALESCE(data->>'nomor_nik', '');
+  inserted     pasien;
+  dup          pasien;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('antrian:' || day_start::text));
+
+  -- Dedup: 1 NIK per hari (hanya jika NIK diisi)
+  IF nik_in <> '' THEN
+    SELECT * INTO dup
+      FROM pasien
+     WHERE nomor_nik = nik_in
+       AND created_at >= day_start AND created_at <= day_end
+     LIMIT 1;
+    IF dup IS NOT NULL THEN
+      RETURN jsonb_build_object(
+        'error', 'NIK sudah terdaftar hari ini',
+        'nomor_antrian', dup.nomor_antrian,
+        'status', dup.status
+      );
+    END IF;
+  END IF;
+
+  SELECT COALESCE(MAX(nomor_antrian), 0) + 1
+    INTO no_baru
+    FROM pasien
+   WHERE created_at >= day_start AND created_at <= day_end;
+
+  INSERT INTO pasien (
+    nomor_antrian, nama, keluhan, tanggal_lahir, jenis_kelamin,
+    alamat, no_hp, nomor_nik, jenis_pembayaran, nomor_bpjs, nama_asuransi,
+    nomor_rm, status, created_at
+  ) VALUES (
+    no_baru,
+    data->>'nama',
+    data->>'keluhan',
+    NULLIF(data->>'tanggal_lahir', '')::date,
+    COALESCE(data->>'jenis_kelamin', 'Laki-laki'),
+    COALESCE(data->>'alamat', ''),
+    COALESCE(data->>'no_hp', ''),
+    nik_in,
+    COALESCE(data->>'jenis_pembayaran', 'Umum'),
+    COALESCE(data->>'nomor_bpjs', ''),
+    COALESCE(data->>'nama_asuransi', ''),
+    COALESCE(data->>'nomor_rm', ''),
+    COALESCE(data->>'status', 'Menunggu'),
+    COALESCE(NULLIF(data->>'created_at', '')::timestamptz, now())
+  )
+  RETURNING * INTO inserted;
+
+  RETURN to_jsonb(inserted);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION daftar_pasien(jsonb) TO anon, authenticated;
+
+-- 11b. cek_pendaftaran_nik: anon ambil pendaftarannya sendiri (untuk
+--      pre-isi form mode edit). Di-gate NIK + tanggal lahir agar orang
+--      tidak bisa menebak NIK acak untuk mengintip data orang lain.
+CREATE OR REPLACE FUNCTION cek_pendaftaran_nik(
+  p_nomor_nik     text,
+  p_tanggal_lahir date,
+  p_day_start     timestamptz,
+  p_day_end       timestamptz
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  row pasien;
+BEGIN
+  SELECT * INTO row
+    FROM pasien
+   WHERE nomor_nik = p_nomor_nik
+     AND tanggal_lahir IS NOT DISTINCT FROM p_tanggal_lahir
+     AND created_at >= p_day_start AND created_at <= p_day_end
+   LIMIT 1;
+
+  IF row IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'nomor_antrian',    row.nomor_antrian,
+    'status',           row.status,
+    'nama',             row.nama,
+    'keluhan',          row.keluhan,
+    'no_hp',            row.no_hp,
+    'jenis_pembayaran', row.jenis_pembayaran,
+    'nomor_bpjs',       row.nomor_bpjs,
+    'nama_asuransi',    row.nama_asuransi
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION cek_pendaftaran_nik(
+  text, date, timestamptz, timestamptz
+) TO anon, authenticated;
+
+-- 11c. Aktifkan RLS + kunci akses langsung anon ke tabel.
+ALTER TABLE pasien        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rekam_medis   ENABLE ROW LEVEL SECURITY;
+
+-- Admin (login) = akses penuh
+DROP POLICY IF EXISTS "authenticated_all_pasien" ON pasien;
+CREATE POLICY "authenticated_all_pasien"
+  ON pasien FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated_all_rekam_medis" ON rekam_medis;
+CREATE POLICY "authenticated_all_rekam_medis"
+  ON rekam_medis FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Publik (anon): hanya boleh BACA antrian HARI INI (untuk TV display &
+-- penghitung antrian online). Realtime ikut pakai policy ini.
+DROP POLICY IF EXISTS "anon_select_today_pasien" ON pasien;
+CREATE POLICY "anon_select_today_pasien"
+  ON pasien FOR SELECT TO anon
+  USING (created_at >= date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta');
+
+-- Batasi KOLOM yang bisa dibaca anon — sembunyikan NIK, alamat, no HP, BPJS.
+REVOKE ALL ON pasien FROM anon;
+GRANT SELECT (nomor_antrian, nama, status, keluhan, created_at, jenis_kelamin) ON pasien TO anon;
+-- anon TIDAK punya INSERT/UPDATE/DELETE langsung — semua lewat RPC di atas.
+
+-- rekam_medis: anon tidak punya akses sama sekali (tak ada policy anon).
+REVOKE ALL ON rekam_medis FROM anon;
+
+-- Verifikasi (opsional):
+-- SET ROLE anon; SELECT nomor_nik FROM pasien LIMIT 1;  -- harus ERROR/permission denied
+-- RESET ROLE;

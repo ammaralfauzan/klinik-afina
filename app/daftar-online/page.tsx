@@ -136,6 +136,30 @@ export default function DaftarOnlinePage() {
     return errs;
   }
 
+  // Ambil pendaftaran milik NIK ini hari ini. Pakai RPC SECURITY DEFINER
+  // (gate NIK + tanggal lahir); fallback ke SELECT langsung bila RPC belum
+  // ada di DB (mis. SQL Langkah 11 belum dijalankan).
+  async function fetchExistingReg(nikClean: string, start: string, end: string): Promise<ExistingReg | null> {
+    const { data, error } = await supabase.rpc("cek_pendaftaran_nik", {
+      p_nomor_nik:     nikClean,
+      p_tanggal_lahir: form.tanggal_lahir || null,
+      p_day_start:     start,
+      p_day_end:       end,
+    });
+    const fnMissing = error && (error.code === "PGRST202" || /function .*does not exist/i.test(error.message || ""));
+    if (fnMissing) {
+      const { data: rows } = await supabase
+        .from("pasien")
+        .select("nomor_antrian, status, nama, keluhan, no_hp, jenis_pembayaran, nomor_bpjs, nama_asuransi")
+        .eq("nomor_nik", nikClean)
+        .gte("created_at", start)
+        .lte("created_at", end)
+        .limit(1);
+      return rows && rows.length > 0 ? (rows[0] as ExistingReg) : null;
+    }
+    return (data as ExistingReg | null) ?? null;
+  }
+
   async function handleSubmit() {
     const errs = runValidation();
     if (Object.keys(errs).length > 0) {
@@ -151,16 +175,10 @@ export default function DaftarOnlinePage() {
     const nikClean = form.nomor_nik.replace(/\D/g, "");
 
     // Dedup: 1 NIK per hari — cek apakah sudah ada pendaftaran
-    const { data: dupNIK } = await supabase
-      .from("pasien")
-      .select("nomor_antrian, status, nama, keluhan, no_hp, jenis_pembayaran, nomor_bpjs, nama_asuransi")
-      .eq("nomor_nik", nikClean)
-      .gte("created_at", start)
-      .lte("created_at", end)
-      .limit(1);
+    const existingReg = await fetchExistingReg(nikClean, start, end);
 
-    if (dupNIK && dupNIK.length > 0) {
-      const existing = dupNIK[0] as ExistingReg;
+    if (existingReg) {
+      const existing = existingReg;
       if (existing.status !== "Menunggu") {
         // Sudah dipanggil/selesai — tidak bisa edit
         setError(
@@ -221,6 +239,15 @@ export default function DaftarOnlinePage() {
     const { data: rpcRow, error: rpcErr } = await supabase.rpc("daftar_pasien", {
       data: { ...payload, day_start: start, day_end: end },
     });
+
+    // daftar_pasien bisa mengembalikan { error } bila NIK sudah terdaftar
+    // (dedup atomik di dalam advisory lock — menutup celah balapan).
+    const rpcDupError = (rpcRow as { error?: string } | null)?.error;
+    if (rpcDupError) {
+      setError("NIK ini sudah terdaftar hari ini. Muat ulang halaman untuk mengubah pendaftaran Anda.");
+      setStep("form");
+      return;
+    }
 
     if (rpcErr) {
       const fnMissing = rpcErr.code === "PGRST202" || /function .*does not exist/i.test(rpcErr.message || "");

@@ -21,15 +21,24 @@ export default function ThemedLayout({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  // Session guard — redirect to login if Supabase session expired
+  // Session guard — verifikasi sesi Supabase yang sebenarnya, bukan sekadar
+  // cookie isLoggedIn (yang mudah dipalsukan). Tanpa sesi valid → ke /login.
   useEffect(() => {
     if (BYPASS_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"))) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        document.cookie = "isLoggedIn=; path=/; max-age=0";
-        localStorage.removeItem("isLoggedIn");
-        router.push("/login");
-      }
+
+    function clearAndRedirect() {
+      document.cookie = "isLoggedIn=; path=/; max-age=0";
+      localStorage.removeItem("isLoggedIn");
+      router.replace("/login");
+    }
+
+    // Cek saat halaman dibuka — cookie palsu tanpa sesi JWT ditolak.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) clearAndRedirect();
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) clearAndRedirect();
     });
     return () => subscription.unsubscribe();
   }, [pathname, router]);
