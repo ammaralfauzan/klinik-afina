@@ -500,8 +500,8 @@ export default function PasienPage() {
           box-shadow: 0 4px 20px rgba(0,0,0,0.15);
           animation: slideInRight 0.28s ease;
         }
-        .toast-bar.success { background: #fff; border-left: 4px solid #10b981; }
-        .toast-bar.error { background: #fff; border-left: 4px solid #ef4444; }
+        .toast-bar.success { background: var(--bg-card); border-left: 4px solid #10b981; }
+        .toast-bar.error { background: var(--bg-card); border-left: 4px solid #ef4444; }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         .sql-code {
@@ -648,7 +648,7 @@ export default function PasienPage() {
             ? <CheckCircle2 size={18} color="#10b981" style={{ flexShrink: 0, marginTop: "1px" }} />
             : <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0, marginTop: "1px" }} />
           }
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "#1A1A2E", flex: 1, lineHeight: 1.5 }}>{toast.msg}</span>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", flex: 1, lineHeight: 1.5 }}>{toast.msg}</span>
           <button onClick={() => setToast(null)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexShrink: 0 }}>
             <X size={15} color="#8B8FA8" />
           </button>
@@ -913,7 +913,7 @@ export default function PasienPage() {
                 <CreditCard size={14} color="var(--text-secondary)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
                   className={`form-input${touched.nomor_nik && errors.nomor_nik ? " has-error" : ""}`}
-                  placeholder="16 digit NIK — Anak < 17 tahun: NIK dari KK atau NIK orang tua"
+                  placeholder="16 digit NIK — Anak < 17 tahun: NIK dari KK"
                   inputMode="numeric"
                   maxLength={16}
                   value={form.nomor_nik}
