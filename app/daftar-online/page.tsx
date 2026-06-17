@@ -125,14 +125,13 @@ export default function DaftarOnlinePage() {
       .from("pasien")
       .select("nomor_antrian")
       .eq("nomor_nik", nikClean)
-      .ilike("nama", normalizeName(form.nama))
       .gte("created_at", start)
       .lte("created_at", end)
       .limit(1);
 
     if (dupNIK && dupNIK.length > 0) {
       setError(
-        `${normalizeName(form.nama)} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
+        `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
         `Jika ada kesalahan, hubungi petugas klinik.`
       );
       setStep("form");

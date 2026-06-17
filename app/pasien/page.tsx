@@ -306,12 +306,11 @@ export default function PasienPage() {
           .from("pasien")
           .select("nomor_antrian")
           .eq("nomor_nik", nikClean)
-          .ilike("nama", normalizeName(form.nama))
           .gte("created_at", tdS)
           .lte("created_at", tdE)
           .limit(1);
         if (dupNIK && dupNIK.length > 0) {
-          showToast("error", `${normalizeName(form.nama)} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
+          showToast("error", `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
           setLoading(false);
           return;
         }
