@@ -7,16 +7,24 @@ import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, C
 import { validateNIK, validateNomorBPJS, normalizeName } from "../../lib/validation";
 
 const KELUHAN_OPTIONS = [
-  "Demam",
   "Batuk & Pilek",
-  "Sakit Kepala",
-  "Mual & Muntah",
+  "Demam",
   "Diare",
-  "Kontrol Kehamilan",
+  "Gatal / Alergi Kulit",
   "Imunisasi",
   "KB",
+  "Kecelakaan / Luka",
+  "Keluhan THT",
+  "Kontrol Kehamilan",
+  "Lemas / Kelelahan",
+  "Mual & Muntah",
+  "Nyeri Perut",
+  "Nyeri Sendi / Otot",
   "PAP Smear",
   "Persalinan",
+  "Sakit Kepala / Pusing",
+  "Sesak Napas",
+  "Tekanan Darah Tinggi",
   "Lainnya",
 ];
 
@@ -27,7 +35,7 @@ type FormState = {
   no_hp: string;
   nomor_nik: string;
   alamat: string;
-  keluhan: string;
+  keluhan: string[];
   keluhan_lainnya: string;
   jenis_pembayaran: string;
   nomor_bpjs: string;
@@ -46,7 +54,7 @@ const INITIAL_FORM: FormState = {
   no_hp: "",
   nomor_nik: "",
   alamat: "",
-  keluhan: "",
+  keluhan: [],
   keluhan_lainnya: "",
   jenis_pembayaran: "Umum",
   nomor_bpjs: "",
@@ -121,9 +129,9 @@ function validate(form: FormState): Errors {
   }
 
   // Keluhan
-  if (!form.keluhan) {
+  if (form.keluhan.length === 0) {
     errs.keluhan = "Keluhan wajib dipilih.";
-  } else if (form.keluhan === "Lainnya" && !form.keluhan_lainnya.trim()) {
+  } else if (form.keluhan.includes("Lainnya") && !form.keluhan_lainnya.trim()) {
     errs.keluhan_lainnya = "Mohon deskripsikan keluhan Anda.";
   }
 
@@ -237,7 +245,7 @@ export default function PasienPage() {
   }, [searchQ]);
 
   function fillFromPatient(p: typeof searchRes[0] & { jenis_pembayaran?: string; nomor_bpjs?: string; nama_asuransi?: string }) {
-    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), nomor_nik: p.nomor_nik || "", alamat: p.alamat || "", keluhan: "", keluhan_lainnya: "", jenis_pembayaran: p.jenis_pembayaran || "Umum", nomor_bpjs: p.nomor_bpjs || "", nama_asuransi: p.nama_asuransi || "" });
+    setForm({ ...INITIAL_FORM, nama: p.nama, tanggal_lahir: p.tanggal_lahir || "", jenis_kelamin: p.jenis_kelamin || "Laki-laki", no_hp: formatHP(p.no_hp || ""), nomor_nik: p.nomor_nik || "", alamat: p.alamat || "", keluhan: [], keluhan_lainnya: "", jenis_pembayaran: p.jenis_pembayaran || "Umum", nomor_bpjs: p.nomor_bpjs || "", nama_asuransi: p.nama_asuransi || "" });
     setErrors({}); setTouched({}); setSearchQ(""); setSearchRes([]); setSearchOpen(false);
   }
 
@@ -277,9 +285,13 @@ export default function PasienPage() {
     } catch { /* clipboard not available */ }
   }
 
-  const keluhanFinal = form.keluhan === "Lainnya"
-    ? form.keluhan_lainnya.trim()
-    : form.keluhan;
+  const keluhanFinal = (() => {
+    const parts = form.keluhan.filter(k => k !== "Lainnya");
+    if (form.keluhan.includes("Lainnya") && form.keluhan_lainnya.trim()) {
+      parts.push(form.keluhan_lainnya.trim());
+    }
+    return parts.join(", ");
+  })();
 
   async function handleSubmit() {
     // Block submit if schema not ready
@@ -942,14 +954,17 @@ export default function PasienPage() {
 
             {/* Keluhan */}
             <div className="form-full">
-              <label style={labelStyle}>Keluhan <Req /></label>
-              <div className="keluhan-grid" style={{ marginBottom: form.keluhan === "Lainnya" ? "10px" : "0" }}>
+              <label style={labelStyle}>Keluhan <Req /> <span style={{ fontSize: "11px", fontWeight: 400, color: "var(--text-secondary)", textTransform: "none", letterSpacing: 0 }}>(bisa pilih lebih dari satu)</span></label>
+              <div className="keluhan-grid" style={{ marginBottom: form.keluhan.includes("Lainnya") ? "10px" : "0" }}>
                 {KELUHAN_OPTIONS.map((opt) => (
                   <div
                     key={opt}
-                    className={`keluhan-option${form.keluhan === opt ? " selected" : ""}${touched.keluhan && errors.keluhan && !form.keluhan ? " has-error" : ""}`}
+                    className={`keluhan-option${form.keluhan.includes(opt) ? " selected" : ""}${touched.keluhan && errors.keluhan && form.keluhan.length === 0 ? " has-error" : ""}`}
                     onClick={() => {
-                      updateField("keluhan", opt);
+                      const next = form.keluhan.includes(opt)
+                        ? form.keluhan.filter(k => k !== opt)
+                        : [...form.keluhan, opt];
+                      updateField("keluhan", next);
                       setTouched((t) => ({ ...t, keluhan: true }));
                     }}
                   >
@@ -959,7 +974,7 @@ export default function PasienPage() {
               </div>
               <FieldError msg={touched.keluhan ? errors.keluhan : undefined} />
 
-              {form.keluhan === "Lainnya" && (
+              {form.keluhan.includes("Lainnya") && (
                 <div style={{ marginTop: "10px" }}>
                   <textarea
                     className={`form-input${touched.keluhan_lainnya && errors.keluhan_lainnya ? " has-error" : ""}`}
