@@ -7,6 +7,7 @@ import { useAudio } from "../components/AudioNotif";
 import Toast from "../components/Toast";
 
 type Pasien = {
+  id: string;
   nama: string; keluhan: string; status: string;
   nomor_antrian: number; no_hp?: string; created_at?: string;
 };
@@ -64,34 +65,46 @@ export default function AntrianPage() {
           const msg = `Pasien baru: ${p.nama} — No. ${padNo(p.nomor_antrian)}`;
           setToast({ visible: true, message: msg });
           sendPushNotif("🏥 Pasien Baru Masuk", `${p.nama} · No. Antrian ${padNo(p.nomor_antrian)} · ${p.keluhan}`);
+          fetchPasien();
+        } else if (payload.eventType === "UPDATE") {
+          // Langsung update item spesifik dari payload — hindari race condition refetch
+          const updated = payload.new as Pasien;
+          setPasienList(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+        } else {
+          fetchPasien();
         }
-        fetchPasien();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchPasien, playDing, sendPushNotif]);
 
   async function updateStatus(p: Pasien, status: string) {
-    // Optimistic update — UI langsung berubah sebelum menunggu Supabase
-    setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status } : x));
+    const prevStatus = p.status;
+    setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status } : x));
 
-    const { start, end } = getTodayRange();
-    const { error } = await supabase.from("pasien")
+    const { data: updated, error } = await supabase
+      .from("pasien")
       .update({ status })
-      .eq("nomor_antrian", p.nomor_antrian)
-      .gte("created_at", start)
-      .lte("created_at", end);
+      .eq("id", p.id)
+      .select("id, status");
 
     if (error) {
-      // Rollback jika gagal
-      setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status: p.status } : x));
-      setToast({ visible: true, message: `Gagal update status: ${error.message}` });
+      setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status: prevStatus } : x));
+      setToast({ visible: true, message: `Gagal: ${error.message}` });
       return;
     }
+
+    // 0 baris benar-benar berubah = RLS memblokir tulis (sesi tidak authenticated)
+    if (!updated?.length) {
+      setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status: prevStatus } : x));
+      setToast({ visible: true, message: "Gagal menyimpan: izin database menolak perubahan. Coba login ulang." });
+      return;
+    }
+
     if (status === "Sedang Diperiksa") playDingDing();
     if (status === "Selesai")          playDingDown();
     if (status === "Tidak Hadir")      setToast({ visible: true, message: `${p.nama} ditandai tidak hadir` });
-    fetchPasien();
+    // Tidak perlu fetchPasien — realtime UPDATE handler update state langsung dari payload.new
   }
 
   function handleSendWA(p: Pasien, action: "panggil" | "selesai") {
@@ -172,9 +185,10 @@ export default function AntrianPage() {
           </div>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "9px 14px", display: "flex", gap: "14px" }}>
             {[
-              { label: "Menunggu",  val: menunggu,   color: "#d97706" },
-              { label: "Diperiksa", val: diperiksa,  color: "#0284c7" },
-              { label: "Selesai",   val: selesai,    color: "#059669" },
+              { label: "Menunggu",    val: menunggu,    color: "#d97706" },
+              { label: "Diperiksa",   val: diperiksa,   color: "#0284c7" },
+              { label: "Selesai",     val: selesai,     color: "#059669" },
+              { label: "Tdk Hadir",   val: tidakHadir,  color: "#6b7280" },
             ].map(s => (
               <div key={s.label} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "18px", fontWeight: 800, color: s.color }}>{s.val}</div>
@@ -293,9 +307,10 @@ export default function AntrianPage() {
 
                       {/* TIDAK HADIR */}
                       {p.status === "Tidak Hadir" && (
-                        <span style={{ display: "flex", alignItems: "center", gap: "5px", color: "#6b7280", fontSize: "12px" }}>
-                          <UserX size={13} /> Tidak Hadir
-                        </span>
+                        <button className="action-btn" onClick={() => updateStatus(p, "Menunggu")}
+                          style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", color: "#d97706", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
+                          <Clock size={12} /> Aktifkan Lagi
+                        </button>
                       )}
                     </div>
                   </td>
