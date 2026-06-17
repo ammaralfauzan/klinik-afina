@@ -62,7 +62,7 @@ export default function DisplayPage() {
     async function fetch() {
       const { data } = await supabase
         .from("pasien")
-        .select("nama, status, nomor_antrian, keluhan")
+        .select("nama, status, nomor_antrian")
         .order("nomor_antrian", { ascending: true });
       if (data) setPasienList(data);
     }

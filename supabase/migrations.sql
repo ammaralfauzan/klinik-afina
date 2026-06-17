@@ -834,3 +834,21 @@ CREATE POLICY "staff_all_pengaturan" ON pengaturan FOR ALL TO authenticated
 --   (dari luar) GET /rest/v1/pengaturan -> 401/permission denied
 -- Admin (login) tetap bisa buka halaman Pengaturan seperti biasa.
 -- ============================================================
+
+-- ============================================================
+-- LANGKAH 15: kurangi kolom baca anon (buang keluhan & jenis_kelamin) — lihat JALANKAN_LANGKAH_15.sql
+-- ============================================================
+-- ============================================================
+
+-- Reset lalu beri ulang hanya kolom yang benar-benar dipakai display publik.
+REVOKE SELECT ON pasien FROM anon;
+GRANT SELECT (nomor_antrian, nama, status, created_at) ON pasien TO anon;
+
+-- Bersihkan baris uji red-team (jika ada).
+DELETE FROM pasien WHERE nama = 'ZZ_TEST_HAPUS';
+
+-- ============================================================
+-- VERIFIKASI (dari luar, sebagai anon):
+--   GET /rest/v1/pasien?select=keluhan  -> harus permission denied
+--   GET /rest/v1/pasien?select=nama,status,nomor_antrian -> tetap boleh
+-- ============================================================
