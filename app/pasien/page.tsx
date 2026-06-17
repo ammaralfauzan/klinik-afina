@@ -225,9 +225,13 @@ export default function PasienPage() {
   useEffect(() => {
     if (!searchQ.trim()) { setSearchRes([]); return; }
     const t = setTimeout(async () => {
+      // Sanitasi: buang karakter yang punya makna khusus di filter PostgREST
+      // ( , ( ) . : * % \ " ) agar input tak bisa mengubah logika query.
+      const term = searchQ.trim().replace(/[,().:*%\\"]/g, " ").replace(/\s+/g, " ").trim();
+      if (!term) { setSearchRes([]); return; }
       const { data } = await supabase.from("pasien")
         .select("nama, tanggal_lahir, jenis_kelamin, no_hp, alamat, nomor_nik, jenis_pembayaran, nomor_bpjs, nama_asuransi")
-        .or(`nama.ilike.%${searchQ.trim()}%,no_hp.ilike.%${searchQ.trim()}%`)
+        .or(`nama.ilike.%${term}%,no_hp.ilike.%${term}%`)
         .order("created_at", { ascending: false })
         .limit(30);
       if (data) {
