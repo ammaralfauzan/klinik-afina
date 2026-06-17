@@ -8,12 +8,48 @@ import {
   Phone, User, Calendar, AlertCircle, Share2, CreditCard, Pencil,
 } from "lucide-react";
 
+// Disamakan dengan halaman admin (/pasien) — urut abjad, standar dokter umum + RB.
 const KELUHAN_CHIPS = [
-  "Demam", "Batuk & Pilek", "Sakit Kepala", "Sakit Perut / Mual",
-  "Diare", "Sesak Napas", "Nyeri Dada", "Nyeri Sendi / Otot",
-  "Luka / Cedera", "Alergi / Gatal-gatal", "Kontrol Rutin", "Imunisasi / Vaksin",
-  "Pemeriksaan Kehamilan", "Lainnya",
+  "Batuk & Pilek",
+  "Demam",
+  "Diare",
+  "Gatal / Alergi Kulit",
+  "Imunisasi",
+  "KB",
+  "Kecelakaan / Luka",
+  "Keluhan THT",
+  "Kontrol Kehamilan",
+  "Lemas / Kelelahan",
+  "Mual & Muntah",
+  "Nyeri Perut",
+  "Nyeri Sendi / Otot",
+  "PAP Smear",
+  "Persalinan",
+  "Sakit Kepala / Pusing",
+  "Sesak Napas",
+  "Tekanan Darah Tinggi",
+  "Lainnya",
 ];
+
+// Gabung pilihan keluhan (array) + teks "Lainnya" jadi satu string untuk disimpan.
+function buildKeluhan(chips: string[], custom: string): string {
+  const parts = chips.filter(k => k !== "Lainnya");
+  if (chips.includes("Lainnya") && custom.trim()) parts.push(custom.trim());
+  return parts.join(", ");
+}
+
+// Pecah string keluhan tersimpan kembali jadi {chips, custom} untuk pre-isi form edit.
+function parseKeluhan(stored: string): { chips: string[]; custom: string } {
+  const parts = (stored || "").split(",").map(s => s.trim()).filter(Boolean);
+  const chips: string[] = [];
+  const customParts: string[] = [];
+  for (const p of parts) {
+    if (KELUHAN_CHIPS.includes(p)) chips.push(p);
+    else customParts.push(p);
+  }
+  if (customParts.length > 0) chips.push("Lainnya");
+  return { chips, custom: customParts.join(", ") };
+}
 
 type Step = "form" | "submitting" | "success";
 
@@ -52,8 +88,8 @@ export default function DaftarOnlinePage() {
 
   const [form, setForm] = useState({
     nama: "", no_hp: "", nomor_nik: "",
-    tanggal_lahir: "", jenis_kelamin: "Perempuan",
-    keluhan: "", keluhan_custom: "",
+    tanggal_lahir: "", jenis_kelamin: "Perempuan", alamat: "",
+    keluhan: [] as string[], keluhan_custom: "",
     jenis_pembayaran: "Umum", nomor_bpjs: "", nama_asuransi: "",
   });
   const [result, setResult] = useState<{ nomor: number; nama: string } | null>(null);
@@ -104,9 +140,11 @@ export default function DaftarOnlinePage() {
     const hpErr = validateNoHp(form.no_hp);
     if (hpErr) errs.no_hp = hpErr;
 
-    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
-    if (!keluhanFinal) errs.keluhan = "Pilih keluhan utama";
-    if (form.keluhan === "Lainnya" && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
+    if (!form.alamat.trim()) errs.alamat = "Alamat wajib diisi";
+    else if (form.alamat.trim().length < 10) errs.alamat = "Alamat minimal 10 karakter";
+
+    if (form.keluhan.length === 0) errs.keluhan = "Pilih minimal satu keluhan";
+    if (form.keluhan.includes("Lainnya") && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
 
     if (form.jenis_pembayaran === "BPJS") {
       const bpjsErr = validateNomorBPJS(form.nomor_bpjs);
@@ -123,9 +161,8 @@ export default function DaftarOnlinePage() {
     const errs: Record<string, string> = {};
     const hpErr = validateNoHp(form.no_hp);
     if (hpErr) errs.no_hp = hpErr;
-    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
-    if (!keluhanFinal) errs.keluhan = "Pilih keluhan utama";
-    if (form.keluhan === "Lainnya" && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
+    if (form.keluhan.length === 0) errs.keluhan = "Pilih minimal satu keluhan";
+    if (form.keluhan.includes("Lainnya") && !form.keluhan_custom.trim()) errs.keluhan_custom = "Deskripsikan keluhan Anda";
     if (form.jenis_pembayaran === "BPJS") {
       const bpjsErr = validateNomorBPJS(form.nomor_bpjs);
       if (bpjsErr) errs.nomor_bpjs = bpjsErr;
@@ -194,8 +231,8 @@ export default function DaftarOnlinePage() {
       setForm(f => ({
         ...f,
         nama: existing.nama,
-        keluhan: KELUHAN_CHIPS.includes(existing.keluhan) ? existing.keluhan : "Lainnya",
-        keluhan_custom: KELUHAN_CHIPS.includes(existing.keluhan) ? "" : existing.keluhan,
+        keluhan: parseKeluhan(existing.keluhan).chips,
+        keluhan_custom: parseKeluhan(existing.keluhan).custom,
         no_hp: formatHP(existing.no_hp),
         jenis_pembayaran: (existing.jenis_pembayaran || "Umum") as "Umum" | "BPJS" | "Asuransi Swasta",
         nomor_bpjs: existing.nomor_bpjs || "",
@@ -208,7 +245,7 @@ export default function DaftarOnlinePage() {
     }
 
     // Belum ada — daftar baru
-    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
+    const keluhanFinal = buildKeluhan(form.keluhan, form.keluhan_custom);
 
     const { data: todayData } = await supabase
       .from("pasien")
@@ -225,6 +262,7 @@ export default function DaftarOnlinePage() {
       nomor_nik:        nikClean,
       tanggal_lahir:    form.tanggal_lahir || null,
       jenis_kelamin:    form.jenis_kelamin,
+      alamat:           form.alamat.trim(),
       keluhan:          keluhanFinal,
       status:           "Menunggu",
       jenis_pembayaran: form.jenis_pembayaran,
@@ -286,7 +324,7 @@ export default function DaftarOnlinePage() {
     setStep("submitting");
 
     const { start, end } = getTodayRange();
-    const keluhanFinal = form.keluhan === "Lainnya" ? form.keluhan_custom.trim() : form.keluhan;
+    const keluhanFinal = buildKeluhan(form.keluhan, form.keluhan_custom);
 
     // Gunakan RPC SECURITY DEFINER agar anon bisa update baris miliknya
     const { data: rpcResult, error: rpcErr } = await supabase.rpc("edit_pendaftaran", {
@@ -324,7 +362,7 @@ export default function DaftarOnlinePage() {
   }
 
   function daftarLagi() {
-    setForm({ nama: "", no_hp: "", nomor_nik: "", tanggal_lahir: "", jenis_kelamin: "Perempuan", keluhan: "", keluhan_custom: "", jenis_pembayaran: "Umum", nomor_bpjs: "", nama_asuransi: "" });
+    setForm({ nama: "", no_hp: "", nomor_nik: "", tanggal_lahir: "", jenis_kelamin: "Perempuan", alamat: "", keluhan: [], keluhan_custom: "", jenis_pembayaran: "Umum", nomor_bpjs: "", nama_asuransi: "" });
     setFieldErrors({});
     setError("");
     setResult(null);
@@ -622,22 +660,44 @@ export default function DaftarOnlinePage() {
               </div>
             )}
 
+            {/* Alamat — sembunyikan di edit mode (alamat tidak diubah saat edit) */}
+            {!editMode && (
+              <div>
+                <label className="dol-label">Alamat *</label>
+                <textarea
+                  className={`dol-input dol-input-plain${fieldErrors.alamat ? " err" : ""}`}
+                  placeholder="Masukkan alamat lengkap (min. 10 karakter)"
+                  rows={3}
+                  value={form.alamat}
+                  onChange={e => { setForm(f => ({ ...f, alamat: e.target.value })); clearErr("alamat"); }}
+                  style={{ resize: "none" }}
+                />
+                <FieldErr field="alamat" />
+              </div>
+            )}
+
             {/* Keluhan */}
             <div>
-              <label className="dol-label">Keluhan Utama *</label>
+              <label className="dol-label">Keluhan Utama * <span style={{ fontWeight: 400, color: "#999", fontSize: "11px" }}>(bisa pilih lebih dari satu)</span></label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
                 {KELUHAN_CHIPS.map(k => (
                   <button
                     key={k}
-                    className={`dol-chip${form.keluhan === k ? " active" : ""}${fieldErrors.keluhan && !form.keluhan ? " keluhan-err" : ""}`}
-                    onClick={() => { setForm(f => ({ ...f, keluhan: k })); clearErr("keluhan"); }}
+                    className={`dol-chip${form.keluhan.includes(k) ? " active" : ""}${fieldErrors.keluhan && form.keluhan.length === 0 ? " keluhan-err" : ""}`}
+                    onClick={() => {
+                      setForm(f => ({
+                        ...f,
+                        keluhan: f.keluhan.includes(k) ? f.keluhan.filter(x => x !== k) : [...f.keluhan, k],
+                      }));
+                      clearErr("keluhan");
+                    }}
                   >
                     {k}
                   </button>
                 ))}
               </div>
               <FieldErr field="keluhan" />
-              {form.keluhan === "Lainnya" && (
+              {form.keluhan.includes("Lainnya") && (
                 <>
                   <input
                     className={`dol-input dol-input-plain${fieldErrors.keluhan_custom ? " err" : ""}`}
