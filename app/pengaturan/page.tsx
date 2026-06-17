@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { Settings, Save, CheckCircle2, Clock, Phone, MapPin, User, Building2, Banknote, Calendar, Map } from "lucide-react";
+import { Settings, Save, CheckCircle2, AlertCircle, Clock, Phone, MapPin, User, Building2, Banknote, Calendar, Map } from "lucide-react";
 import { useTour } from "../components/AppTour";
 
 type Pengaturan = {
@@ -41,34 +41,47 @@ export default function PengaturanPage() {
   const [useDB, setUseDB] = useState<boolean | null>(null);
   const [jadwal, setJadwal] = useState<Record<string, string>>({});
 
-  // Try to load from Supabase; fall back to localStorage silently
+  // Sumber kebenaran: database. localStorage hanya cache cadangan (offline).
   useEffect(() => {
     supabase.from("pengaturan").select("*").eq("id", 1).single().then(({ data, error }) => {
       if (data && !error) {
-        setForm(f => ({ ...f, ...data }));
+        const { jadwal: dbJadwal, ...rest } = data as Pengaturan & { jadwal?: Record<string, string> };
+        setForm(f => ({ ...f, ...rest }));
+        setJadwal(dbJadwal && typeof dbJadwal === "object" ? dbJadwal : {});
         setUseDB(true);
+        // mirror ke lokal untuk fallback dashboard saat offline
+        saveLocal({ ...DEFAULTS, ...rest });
+        try { localStorage.setItem(JADWAL_KEY, JSON.stringify(dbJadwal || {})); } catch { /* noop */ }
       } else {
         setUseDB(false);
         setForm(f => ({ ...f, ...loadLocal() }));
+        try { setJadwal(JSON.parse(localStorage.getItem(JADWAL_KEY) || "{}")); } catch { /* noop */ }
       }
     });
-    try {
-      const saved = JSON.parse(localStorage.getItem(JADWAL_KEY) || "{}");
-      setJadwal(saved);
-    } catch { /* noop */ }
   }, []);
 
   async function handleSave() {
     setLoading(true); setStatus("idle");
-    saveLocal(form); // always save locally
+    saveLocal(form); // cache lokal
     try { localStorage.setItem(JADWAL_KEY, JSON.stringify(jadwal)); } catch { /* noop */ }
 
     if (useDB) {
-      const { error } = await supabase.from("pengaturan")
-        .upsert({ ...form, updated_at: new Date().toISOString() }).eq("id", 1);
+      let { error } = await supabase.from("pengaturan")
+        .upsert({ ...form, jadwal, updated_at: new Date().toISOString() });
+      // Jika kolom baru (jadwal/tarif) belum ada — Langkah 16 belum dijalankan —
+      // simpan profil dasar saja agar tidak hard-fail.
+      if (error && /column|PGRST204|schema cache/i.test(`${error.message} ${error.code}`)) {
+        const base = {
+          id: form.id, nama_klinik: form.nama_klinik, alamat: form.alamat,
+          telepon: form.telepon, jam_buka: form.jam_buka, jam_tutup: form.jam_tutup,
+          dokter_jaga: form.dokter_jaga, updated_at: new Date().toISOString(),
+        };
+        ({ error } = await supabase.from("pengaturan").upsert(base));
+      }
       if (error) {
-        // fallback: only local was saved
-        saveLocal(form);
+        setLoading(false); setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+        return;
       }
     }
     setLoading(false); setStatus("saved");
@@ -125,6 +138,15 @@ export default function PengaturanPage() {
           <CheckCircle2 size={16} color="#059669" />
           <span style={{ fontSize: "13px", color: "#059669", fontWeight: 600 }}>
             Pengaturan berhasil disimpan{useDB ? " ke database" : " (lokal)"}!
+          </span>
+        </div>
+      )}
+
+      {status === "error" && (
+        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "12px", padding: "14px 18px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
+          <AlertCircle size={16} color="#dc2626" />
+          <span style={{ fontSize: "13px", color: "#dc2626", fontWeight: 600 }}>
+            Gagal menyimpan ke database. Periksa koneksi lalu coba lagi.
           </span>
         </div>
       )}

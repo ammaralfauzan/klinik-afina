@@ -29,8 +29,22 @@ export default function KasirPage() {
   // Local edits: map nomor_antrian → {biaya, status_bayar}
   const [edits, setEdits] = useState<Map<number, { biaya: string; status_bayar: string }>>(new Map());
   const [notaModal, setNotaModal] = useState<{ p: Pasien; biaya: number } | null>(null);
+  const [presetTarif, setPresetTarif] = useState<number[]>(BIAYA_PRESET);
 
   const today = getTodayRange();
+
+  // Preset biaya diambil dari Tarif di Pengaturan (tersinkron antar perangkat).
+  useEffect(() => {
+    supabase.from("pengaturan").select("tarif_umum, tarif_bpjs, tarif_igd").eq("id", 1).single()
+      .then(({ data }) => {
+        if (!data) return;
+        const fromTarif = [data.tarif_umum, data.tarif_bpjs, data.tarif_igd]
+          .map(v => parseInt(String(v ?? "").replace(/\D/g, "")) || 0)
+          .filter(v => v > 0);
+        const merged = [...new Set([...fromTarif, ...BIAYA_PRESET])].sort((a, b) => a - b);
+        if (merged.length) setPresetTarif(merged);
+      });
+  }, []);
 
   const fetchPasien = useCallback(async () => {
     const { data, error } = await supabase.from("pasien")
@@ -321,7 +335,7 @@ export default function KasirPage() {
                             inputMode="numeric"
                           />
                           <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                            {BIAYA_PRESET.map(v => (
+                            {presetTarif.map(v => (
                               <button key={v} className="preset-btn" onClick={() => setEdit(p.nomor_antrian, { biaya: String(v) })}>
                                 {(v / 1000)}rb
                               </button>

@@ -36,19 +36,15 @@ export default function Home() {
   useEffect(() => {
     fetchPasien();
 
-    // Load dokter hari ini dari jadwal localStorage
-    try {
-      const jadwal = JSON.parse(localStorage.getItem("klinik_jadwal") || "{}");
-      const days = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
-      const today = days[new Date().getDay()];
-      const fromJadwal = jadwal[today];
-      if (fromJadwal) {
-        setDokterHariIni(fromJadwal);
-      } else {
-        const pg = JSON.parse(localStorage.getItem("klinik_pengaturan") || "{}");
-        if (pg.dokter_jaga) setDokterHariIni(pg.dokter_jaga);
-      }
-    } catch { /* noop */ }
+    // Dokter hari ini dari jadwal di DB (tersinkron antar perangkat).
+    const days = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
+    const todayKey = days[new Date().getDay()];
+    supabase.from("pengaturan").select("jadwal, dokter_jaga").eq("id", 1).single().then(({ data }) => {
+      const jadwal = (data?.jadwal && typeof data.jadwal === "object" ? data.jadwal : {}) as Record<string, string>;
+      const fromJadwal = jadwal[todayKey];
+      if (fromJadwal) setDokterHariIni(fromJadwal);
+      else if (data?.dokter_jaga) setDokterHariIni(data.dokter_jaga);
+    });
 
     // Fetch data 7 hari
     const fetchWeek = async () => {

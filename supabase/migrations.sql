@@ -852,3 +852,20 @@ DELETE FROM pasien WHERE nama = 'ZZ_TEST_HAPUS';
 --   GET /rest/v1/pasien?select=keluhan  -> harus permission denied
 --   GET /rest/v1/pasien?select=nama,status,nomor_antrian -> tetap boleh
 -- ============================================================
+
+-- ============================================================
+-- LANGKAH 16: jadwal & tarif pindah ke DB (lihat JALANKAN_LANGKAH_16.sql)
+-- ============================================================
+
+ALTER TABLE pengaturan ADD COLUMN IF NOT EXISTS jadwal     jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE pengaturan ADD COLUMN IF NOT EXISTS tarif_umum text  DEFAULT '75000';
+ALTER TABLE pengaturan ADD COLUMN IF NOT EXISTS tarif_bpjs text  DEFAULT '0';
+ALTER TABLE pengaturan ADD COLUMN IF NOT EXISTS tarif_igd  text  DEFAULT '150000';
+
+-- Pastikan ada baris id=1 (sumber konfigurasi tunggal klinik).
+INSERT INTO pengaturan (id, nama_klinik)
+VALUES (1, 'Klinik & RB Afina')
+ON CONFLICT (id) DO NOTHING;
+
+-- Verifikasi:
+-- SELECT id, jadwal, tarif_umum, tarif_bpjs, tarif_igd FROM pengaturan WHERE id = 1;
