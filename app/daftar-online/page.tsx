@@ -326,8 +326,10 @@ export default function DaftarOnlinePage() {
     const { start, end } = getTodayRange();
     const keluhanFinal = buildKeluhan(form.keluhan, form.keluhan_custom);
 
-    // Gunakan RPC SECURITY DEFINER agar anon bisa update baris miliknya
-    const { data: rpcResult, error: rpcErr } = await supabase.rpc("edit_pendaftaran", {
+    // Gunakan RPC SECURITY DEFINER agar anon bisa update baris miliknya.
+    // Versi baru di-gate NIK + tanggal lahir (p_tanggal_lahir). Bila DB masih
+    // signature lama (SQL Langkah 12 belum dijalankan), fallback tanpa tgl lahir.
+    const baseArgs = {
       p_nomor_nik:        form.nomor_nik.replace(/\D/g, ""),
       p_nomor_antrian:    existingReg.nomor_antrian,
       p_keluhan:          keluhanFinal,
@@ -337,7 +339,14 @@ export default function DaftarOnlinePage() {
       p_nama_asuransi:    form.jenis_pembayaran === "Asuransi Swasta" ? form.nama_asuransi.trim() : "",
       p_day_start:        start,
       p_day_end:          end,
+    };
+    let { data: rpcResult, error: rpcErr } = await supabase.rpc("edit_pendaftaran", {
+      ...baseArgs,
+      p_tanggal_lahir: form.tanggal_lahir || null,
     });
+    if (rpcErr && (rpcErr.code === "PGRST202" || /function .*does not exist|could not find the function/i.test(rpcErr.message || ""))) {
+      ({ data: rpcResult, error: rpcErr } = await supabase.rpc("edit_pendaftaran", baseArgs));
+    }
 
     const rpcError = (rpcResult as { error?: string } | null)?.error;
     if (rpcErr || rpcError) {
