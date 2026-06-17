@@ -7,7 +7,6 @@ import { useAudio } from "../components/AudioNotif";
 import Toast from "../components/Toast";
 
 type Pasien = {
-  id: string;
   nama: string; keluhan: string; status: string;
   nomor_antrian: number; no_hp?: string; created_at?: string;
 };
@@ -67,9 +66,8 @@ export default function AntrianPage() {
           sendPushNotif("🏥 Pasien Baru Masuk", `${p.nama} · No. Antrian ${padNo(p.nomor_antrian)} · ${p.keluhan}`);
           fetchPasien();
         } else if (payload.eventType === "UPDATE") {
-          // Langsung update item spesifik dari payload — hindari race condition refetch
           const updated = payload.new as Pasien;
-          setPasienList(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+          setPasienList(prev => prev.map(x => x.nomor_antrian === updated.nomor_antrian ? { ...x, ...updated } : x));
         } else {
           fetchPasien();
         }
@@ -80,23 +78,25 @@ export default function AntrianPage() {
 
   async function updateStatus(p: Pasien, status: string) {
     const prevStatus = p.status;
-    setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status } : x));
+    setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status } : x));
 
+    const { start, end } = getTodayRange();
     const { data: updated, error } = await supabase
       .from("pasien")
       .update({ status })
-      .eq("id", p.id)
-      .select("id, status");
+      .eq("nomor_antrian", p.nomor_antrian)
+      .gte("created_at", start)
+      .lte("created_at", end)
+      .select("nomor_antrian, status");
 
     if (error) {
-      setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status: prevStatus } : x));
+      setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status: prevStatus } : x));
       setToast({ visible: true, message: `Gagal: ${error.message}` });
       return;
     }
 
-    // 0 baris benar-benar berubah = RLS memblokir tulis (sesi tidak authenticated)
     if (!updated?.length) {
-      setPasienList(prev => prev.map(x => x.id === p.id ? { ...x, status: prevStatus } : x));
+      setPasienList(prev => prev.map(x => x.nomor_antrian === p.nomor_antrian ? { ...x, status: prevStatus } : x));
       setToast({ visible: true, message: "Gagal menyimpan: izin database menolak perubahan. Coba login ulang." });
       return;
     }
