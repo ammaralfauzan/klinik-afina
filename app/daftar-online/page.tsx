@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { validateNama, validateNoHp, validateNIK, validateNomorBPJS } from "../../lib/validation";
+import { validateNama, validateNoHp, validateNIK, validateNomorBPJS, normalizeName } from "../../lib/validation";
 import {
   CheckCircle, Clock, Users, ChevronRight,
   Phone, User, Calendar, AlertCircle, Share2, CreditCard,
@@ -125,14 +125,14 @@ export default function DaftarOnlinePage() {
       .from("pasien")
       .select("nomor_antrian")
       .eq("nomor_nik", nikClean)
-      .ilike("nama", form.nama.trim())
+      .ilike("nama", normalizeName(form.nama))
       .gte("created_at", start)
       .lte("created_at", end)
       .limit(1);
 
     if (dupNIK && dupNIK.length > 0) {
       setError(
-        `${form.nama.trim()} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
+        `${normalizeName(form.nama)} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
         `Jika ada kesalahan, hubungi petugas klinik.`
       );
       setStep("form");
@@ -151,7 +151,7 @@ export default function DaftarOnlinePage() {
     const nomorFallback = (todayData?.[0]?.nomor_antrian || 0) + 1;
 
     const payload = {
-      nama:             form.nama.trim(),
+      nama:             normalizeName(form.nama),
       no_hp:            form.no_hp.replace(/\D/g, ""),
       nomor_nik:        nikClean,
       tanggal_lahir:    form.tanggal_lahir || null,

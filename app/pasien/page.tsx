@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
 import { UserPlus, ClipboardList, CheckCircle2, AlertCircle, X, AlertTriangle, Copy, Check, ChevronDown, Printer, CreditCard } from "lucide-react";
-import { validateNIK, validateNomorBPJS } from "../../lib/validation";
+import { validateNIK, validateNomorBPJS, normalizeName } from "../../lib/validation";
 
 const KELUHAN_OPTIONS = [
   "Demam",
@@ -306,12 +306,12 @@ export default function PasienPage() {
           .from("pasien")
           .select("nomor_antrian")
           .eq("nomor_nik", nikClean)
-          .ilike("nama", form.nama.trim())
+          .ilike("nama", normalizeName(form.nama))
           .gte("created_at", tdS)
           .lte("created_at", tdE)
           .limit(1);
         if (dupNIK && dupNIK.length > 0) {
-          showToast("error", `${form.nama.trim()} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
+          showToast("error", `${normalizeName(form.nama)} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
           setLoading(false);
           return;
         }
@@ -376,7 +376,7 @@ export default function PasienPage() {
 
       // 3. Build full payload
       const payload = {
-        nama: form.nama.trim(),
+        nama: normalizeName(form.nama),
         keluhan: keluhanFinal,
         tanggal_lahir: form.tanggal_lahir || null,
         jenis_kelamin: form.jenis_kelamin,

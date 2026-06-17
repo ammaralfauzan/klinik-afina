@@ -32,8 +32,12 @@ export function validateNoHp(no: string): string | null {
   return null;
 }
 
+export function normalizeName(nama: string): string {
+  return nama.trim().replace(/\s+/g, " ");
+}
+
 export function validateNama(nama: string): string | null {
-  const clean = nama.trim();
+  const clean = normalizeName(nama);
   if (!clean) return "Nama wajib diisi";
   if (clean.length < 3) return "Nama minimal 3 karakter";
   if (/\d/.test(clean)) return "Nama tidak boleh mengandung angka";
