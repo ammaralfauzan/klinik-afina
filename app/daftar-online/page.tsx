@@ -511,7 +511,7 @@ export default function DaftarOnlinePage() {
                 <div style={{ marginTop: "10px" }}>
                   <input
                     className={`dol-input dol-input-plain${fieldErrors.nama_asuransi ? " err" : ""}`}
-                    placeholder="Nama asuransi & nomor polis (contoh: Prudential - POL123456)"
+                    placeholder="Contoh: Prudential - POL123456789"
                     value={form.nama_asuransi}
                     onChange={e => { setForm(f => ({ ...f, nama_asuransi: e.target.value })); clearErr("nama_asuransi"); }}
                   />
