@@ -125,13 +125,14 @@ export default function DaftarOnlinePage() {
       .from("pasien")
       .select("nomor_antrian")
       .eq("nomor_nik", nikClean)
+      .ilike("nama", form.nama.trim())
       .gte("created_at", start)
       .lte("created_at", end)
       .limit(1);
 
     if (dupNIK && dupNIK.length > 0) {
       setError(
-        `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
+        `${form.nama.trim()} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}. ` +
         `Jika ada kesalahan, hubungi petugas klinik.`
       );
       setStep("form");
@@ -407,7 +408,7 @@ export default function DaftarOnlinePage() {
               </div>
               <FieldErr field="nomor_nik" />
               <p style={{ fontSize: "10px", color: "#aaa", margin: "4px 0 0" }}>
-                Anak &lt; 17 tahun: gunakan NIK orang tua
+                Anak &lt; 17 tahun: gunakan NIK dari Kartu Keluarga (KK), atau NIK orang tua
               </p>
             </div>
 

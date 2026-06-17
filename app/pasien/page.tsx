@@ -306,11 +306,12 @@ export default function PasienPage() {
           .from("pasien")
           .select("nomor_antrian")
           .eq("nomor_nik", nikClean)
+          .ilike("nama", form.nama.trim())
           .gte("created_at", tdS)
           .lte("created_at", tdE)
           .limit(1);
         if (dupNIK && dupNIK.length > 0) {
-          showToast("error", `NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
+          showToast("error", `${form.nama.trim()} dengan NIK ini sudah terdaftar hari ini — No. Antrian ${padNo(dupNIK[0].nomor_antrian)}`);
           setLoading(false);
           return;
         }
@@ -913,7 +914,7 @@ export default function PasienPage() {
                 <CreditCard size={14} color="var(--text-secondary)" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 <input
                   className={`form-input${touched.nomor_nik && errors.nomor_nik ? " has-error" : ""}`}
-                  placeholder="16 digit NIK — Anak < 17 tahun: gunakan NIK orang tua"
+                  placeholder="16 digit NIK — Anak < 17 tahun: NIK dari KK atau NIK orang tua"
                   inputMode="numeric"
                   maxLength={16}
                   value={form.nomor_nik}
