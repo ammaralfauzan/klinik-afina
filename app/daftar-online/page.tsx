@@ -554,11 +554,6 @@ export default function DaftarOnlinePage() {
                 />
               </div>
               <FieldErr field="nomor_nik" />
-              {!editMode && (
-                <p style={{ fontSize: "10px", color: "#aaa", margin: "4px 0 0" }}>
-                  Anak &lt; 17 tahun: gunakan NIK dari Kartu Keluarga (KK), atau NIK orang tua
-                </p>
-              )}
             </div>
 
             {/* No HP */}
