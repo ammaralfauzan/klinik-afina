@@ -450,12 +450,24 @@ export default function DaftarOnlinePage() {
 
           {/* Edit mode banner */}
           {editMode && existingReg && (
-            <div style={{ background: "#EDE9FF", border: "1px solid #C4B5FD", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
-              <Pencil size={14} color="#7B61FF" style={{ flexShrink: 0, marginTop: 2 }} />
-              <p style={{ fontSize: "12px", color: "#5B21B6", margin: 0, lineHeight: 1.6 }}>
-                <strong>Mode Edit</strong> — Nama, NIK, dan tanggal lahir tidak dapat diubah.
-                Nomor antrian tetap <strong>{padNo(existingReg.nomor_antrian)}</strong>.
-              </p>
+            <div style={{ background: "#EDE9FF", border: "1px solid #C4B5FD", borderRadius: "12px", padding: "12px 14px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+                <Pencil size={13} color="#7B61FF" />
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#5B21B6" }}>
+                  Mode Edit — No. Antrian tetap {padNo(existingReg.nomor_antrian)}
+                </span>
+              </div>
+              <ol style={{ margin: 0, paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                <li style={{ fontSize: "11px", color: "#6D28D9", lineHeight: 1.5 }}>
+                  Field bertanda 🔒 <strong>tidak bisa diubah</strong> (identitas diri)
+                </li>
+                <li style={{ fontSize: "11px", color: "#6D28D9", lineHeight: 1.5 }}>
+                  Ubah <strong>keluhan, nomor HP, atau jenis pembayaran</strong> sesuai kebutuhan
+                </li>
+                <li style={{ fontSize: "11px", color: "#6D28D9", lineHeight: 1.5 }}>
+                  Klik <strong>Perbarui Pendaftaran</strong> untuk menyimpan
+                </li>
+              </ol>
             </div>
           )}
 
