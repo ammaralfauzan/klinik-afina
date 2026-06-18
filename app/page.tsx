@@ -37,13 +37,13 @@ export default function Home() {
     fetchPasien();
 
     // Dokter hari ini dari jadwal di DB (tersinkron antar perangkat).
+    // Opsi B: hari tanpa jadwal => "Jadwal Kosong" (tidak fallback ke dokter umum).
     const days = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
     const todayKey = days[new Date().getDay()];
-    supabase.from("pengaturan").select("jadwal, dokter_jaga").eq("id", 1).single().then(({ data }) => {
+    supabase.from("pengaturan").select("jadwal").eq("id", 1).single().then(({ data }) => {
       const jadwal = (data?.jadwal && typeof data.jadwal === "object" ? data.jadwal : {}) as Record<string, string>;
-      const fromJadwal = jadwal[todayKey];
-      if (fromJadwal) setDokterHariIni(fromJadwal);
-      else if (data?.dokter_jaga) setDokterHariIni(data.dokter_jaga);
+      const fromJadwal = (jadwal[todayKey] || "").trim();
+      setDokterHariIni(fromJadwal || "Jadwal Kosong");
     });
 
     // Fetch data 7 hari
