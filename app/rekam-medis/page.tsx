@@ -72,6 +72,9 @@ export default function RekamMedisPage() {
   const [expandedPatient, setExpandedPatient] = useState<string | null>(null);
   const [searchH, setSearchH] = useState("");
   const [resepModal, setResepModal] = useState<RM | null>(null);
+  const [klinik, setKlinik] = useState({ nama_klinik: "Klinik & RB Afina", alamat: "", telepon: "" });
+  const [suratModal, setSuratModal] = useState<{ jenis: "sakit" | "rujukan"; nama: string; diagnosa: string; dokter: string } | null>(null);
+  const [suratForm, setSuratForm] = useState({ umur: "", jenis_kelamin: "", alamat: "", lama: "3", mulai: "", tujuan: "", alasan: "" });
 
   const today = getTodayRange();
 
@@ -141,6 +144,40 @@ export default function RekamMedisPage() {
       pasien: p,
       rm: existing ? { ...existing } : { ...EMPTY_RM, nomor_antrian: p.nomor_antrian, visit_date: today.date, pasien_nama: p.nama, pasien_keluhan: p.keluhan },
     });
+  }
+
+  // Profil klinik untuk kop surat
+  useEffect(() => {
+    supabase.from("pengaturan").select("nama_klinik, alamat, telepon").eq("id", 1).single().then(({ data }) => {
+      if (data) setKlinik({
+        nama_klinik: data.nama_klinik || "Klinik & RB Afina",
+        alamat: data.alamat || "", telepon: data.telepon || "",
+      });
+    });
+  }, []);
+
+  // Buka surat (sakit / rujukan) — auto-isi identitas pasien hari ini.
+  async function openSurat(jenis: "sakit" | "rujukan") {
+    if (!modal) return;
+    const p = modal.pasien;
+    const { data } = await supabase.from("pasien")
+      .select("alamat, tanggal_lahir, jenis_kelamin")
+      .eq("nomor_antrian", p.nomor_antrian)
+      .gte("created_at", today.start).lte("created_at", today.end).limit(1);
+    const row = data?.[0] as { alamat?: string; tanggal_lahir?: string; jenis_kelamin?: string } | undefined;
+    let umur = "";
+    if (row?.tanggal_lahir) {
+      const b = new Date(row.tanggal_lahir), n = new Date();
+      let a = n.getFullYear() - b.getFullYear();
+      if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+      if (a >= 0 && a < 130) umur = String(a);
+    }
+    setSuratForm({
+      umur, jenis_kelamin: row?.jenis_kelamin || "", alamat: row?.alamat || "",
+      lama: "3", mulai: today.date, tujuan: "", alasan: "",
+    });
+    setSuratModal({ jenis, nama: p.nama, diagnosa: (modal.rm.diagnosa as string) || "", dokter: (modal.rm.dokter as string) || "dr. Umum" });
+    setModal(null);
   }
 
   async function saveRM() {
@@ -217,6 +254,8 @@ export default function RekamMedisPage() {
         /* Resep print */
         .resep-overlay { position: fixed; inset: 0; z-index: 9500; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.18s ease; }
         .resep-card { background: #fff; border-radius: 16px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
+        .surat-edit { width: 100%; margin-top: 4px; background: #F5F4FF; border: 1px solid #E0DFFF; border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #1A1A2E; outline: none; font-family: inherit; box-sizing: border-box; resize: none; }
+        .surat-edit:focus { border-color: #6C5CE7; }
         @media print {
           body > * { display: none !important; }
           .resep-overlay { display: block !important; position: static !important; background: none !important; padding: 0 !important; }
@@ -499,6 +538,115 @@ export default function RekamMedisPage() {
         </div>
       )}
 
+      {/* Surat Sakit / Rujukan */}
+      {suratModal && (
+        <div className="resep-overlay" onClick={e => { if (e.target === e.currentTarget) setSuratModal(null); }}>
+          <div className="resep-card" style={{ maxWidth: "560px" }}>
+            {/* Panel edit (tidak ikut cetak) */}
+            <div className="resep-no-print" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px", paddingBottom: "18px", borderBottom: "1px dashed #ddd" }}>
+              <div style={{ gridColumn: "1 / -1", fontSize: "12px", fontWeight: 700, color: "#6C5CE7" }}>
+                Lengkapi data {suratModal.jenis === "sakit" ? "Surat Keterangan Sakit" : "Surat Rujukan"}:
+              </div>
+              <label style={{ fontSize: "11px", color: "#666" }}>Umur (tahun)
+                <input className="surat-edit" value={suratForm.umur} onChange={e => setSuratForm(f => ({ ...f, umur: e.target.value.replace(/\D/g, "") }))} placeholder="cth: 25" />
+              </label>
+              <label style={{ fontSize: "11px", color: "#666" }}>Jenis Kelamin
+                <input className="surat-edit" value={suratForm.jenis_kelamin} onChange={e => setSuratForm(f => ({ ...f, jenis_kelamin: e.target.value }))} placeholder="Laki-laki / Perempuan" />
+              </label>
+              <label style={{ fontSize: "11px", color: "#666", gridColumn: "1 / -1" }}>Alamat
+                <input className="surat-edit" value={suratForm.alamat} onChange={e => setSuratForm(f => ({ ...f, alamat: e.target.value }))} placeholder="Alamat pasien" />
+              </label>
+              {suratModal.jenis === "sakit" ? (
+                <>
+                  <label style={{ fontSize: "11px", color: "#666" }}>Lama istirahat (hari)
+                    <input className="surat-edit" value={suratForm.lama} onChange={e => setSuratForm(f => ({ ...f, lama: e.target.value.replace(/\D/g, "") }))} placeholder="3" />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "#666" }}>Mulai tanggal
+                    <input type="date" className="surat-edit" value={suratForm.mulai} onChange={e => setSuratForm(f => ({ ...f, mulai: e.target.value }))} />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label style={{ fontSize: "11px", color: "#666", gridColumn: "1 / -1" }}>Dirujuk ke (faskes / dokter tujuan)
+                    <input className="surat-edit" value={suratForm.tujuan} onChange={e => setSuratForm(f => ({ ...f, tujuan: e.target.value }))} placeholder="cth: RSUD Cibitung / dr. Sp.OG" />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "#666", gridColumn: "1 / -1" }}>Alasan rujukan
+                    <textarea className="surat-edit" rows={2} value={suratForm.alasan} onChange={e => setSuratForm(f => ({ ...f, alasan: e.target.value }))} placeholder="cth: Memerlukan pemeriksaan USG lanjutan" />
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Kop surat */}
+            <div style={{ borderBottom: "3px double #1A1A2E", paddingBottom: "12px", marginBottom: "18px", textAlign: "center" }}>
+              <p style={{ fontSize: "18px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 2px", letterSpacing: "0.5px" }}>{klinik.nama_klinik}</p>
+              {klinik.alamat && <p style={{ fontSize: "11px", color: "#444", margin: "0 0 1px" }}>{klinik.alamat}</p>}
+              {klinik.telepon && <p style={{ fontSize: "11px", color: "#444", margin: 0 }}>Telp: {klinik.telepon}</p>}
+            </div>
+
+            <p style={{ textAlign: "center", fontSize: "14px", fontWeight: 800, color: "#1A1A2E", margin: "0 0 18px", textDecoration: "underline", letterSpacing: "0.5px" }}>
+              {suratModal.jenis === "sakit" ? "SURAT KETERANGAN SAKIT" : "SURAT RUJUKAN"}
+            </p>
+
+            <div style={{ fontSize: "13px", color: "#1A1A2E", lineHeight: 1.8 }}>
+              <p style={{ margin: "0 0 10px" }}>Yang bertanda tangan di bawah ini, dokter pada {klinik.nama_klinik}, menerangkan bahwa:</p>
+              <table style={{ margin: "0 0 12px 12px", fontSize: "13px", borderCollapse: "collapse" }}>
+                <tbody>
+                  {[
+                    ["Nama", suratModal.nama],
+                    ["Umur", suratForm.umur ? `${suratForm.umur} tahun` : "—"],
+                    ["Jenis Kelamin", suratForm.jenis_kelamin || "—"],
+                    ["Alamat", suratForm.alamat || "—"],
+                  ].map(([k, v]) => (
+                    <tr key={k}><td style={{ padding: "1px 10px 1px 0", verticalAlign: "top", color: "#555" }}>{k}</td><td style={{ padding: "1px 6px", verticalAlign: "top" }}>:</td><td style={{ padding: "1px 0", fontWeight: 600 }}>{v}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {suratModal.jenis === "sakit" ? (
+                <p style={{ margin: "0 0 10px" }}>
+                  Berdasarkan hasil pemeriksaan, yang bersangkutan dinyatakan <strong>sakit</strong>
+                  {suratModal.diagnosa ? <> dengan diagnosa <strong>{suratModal.diagnosa}</strong></> : null} dan
+                  memerlukan istirahat selama <strong>{suratForm.lama || "—"} ({suratForm.lama || "—"}) hari</strong>,
+                  terhitung mulai tanggal <strong>{suratForm.mulai ? new Date(suratForm.mulai).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "—"}</strong>.
+                </p>
+              ) : (
+                <>
+                  <p style={{ margin: "0 0 8px" }}>
+                    Dengan ini merujuk pasien tersebut kepada <strong>{suratForm.tujuan || "—"}</strong> untuk pemeriksaan/penanganan lebih lanjut.
+                  </p>
+                  <p style={{ margin: "0 0 8px" }}>Diagnosa sementara: <strong>{suratModal.diagnosa || "—"}</strong>.</p>
+                  {suratForm.alasan && <p style={{ margin: "0 0 8px" }}>Alasan rujukan: {suratForm.alasan}.</p>}
+                </>
+              )}
+
+              <p style={{ margin: "10px 0 0" }}>Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</p>
+            </div>
+
+            {/* Tanggal + TTD */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
+              <div style={{ textAlign: "center", minWidth: "180px", fontSize: "13px" }}>
+                <p style={{ margin: "0 0 2px", color: "#1A1A2E" }}>{new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                <p style={{ margin: "0 0 48px", color: "#555" }}>Dokter Pemeriksa,</p>
+                <div style={{ borderTop: "1px solid #333", paddingTop: "6px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#1A1A2E", margin: 0 }}>{suratModal.dokter}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol (tidak ikut cetak) */}
+            <div className="resep-no-print" style={{ display: "flex", gap: "8px", marginTop: "24px" }}>
+              <button onClick={() => window.print()} style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "10px", padding: "11px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                <Printer size={14} /> Cetak Surat
+              </button>
+              <button onClick={() => setSuratModal(null)} style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "10px", padding: "11px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {modal && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
@@ -597,6 +745,14 @@ export default function RekamMedisPage() {
                   <Printer size={13} /> Cetak Resep
                 </button>
               )}
+              <button onClick={() => openSurat("sakit")} className="rm-btn"
+                style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(16,185,129,0.25)", background: "rgba(16,185,129,0.08)", color: "#059669", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                <FileText size={13} /> Surat Sakit
+              </button>
+              <button onClick={() => openSurat("rujukan")} className="rm-btn"
+                style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.1)", color: "#b45309", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                <FileText size={13} /> Surat Rujukan
+              </button>
               <button onClick={() => setModal(null)} style={{ padding: "12px 20px", borderRadius: "12px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                 Batal
               </button>
