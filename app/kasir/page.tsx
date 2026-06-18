@@ -2,19 +2,33 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, AlertTriangle, Copy, Check, Banknote, TrendingUp, Printer, MessageCircle, X } from "lucide-react";
+
+type Item = { nama: string; harga: number };
 
 type Pasien = {
   nomor_antrian: number; nama: string; keluhan: string;
   status: string; created_at: string; no_hp?: string;
   biaya?: number; status_bayar?: string;
+  metode_bayar?: string; nomor_invoice?: string; rincian?: Item[];
 };
 
 const BIAYA_PRESET = [50000, 75000, 100000, 150000, 200000];
+const METODE_BAYAR = ["Tunai", "QRIS", "Transfer", "Debit/Kartu"];
+const ITEM_PRESET = ["Jasa Konsultasi", "Obat", "Tindakan Medis", "Administrasi", "Pemeriksaan"];
 
 const MIGRATION_SQL = `-- Jalankan di Supabase Dashboard → SQL Editor
 ALTER TABLE pasien ADD COLUMN IF NOT EXISTS biaya INTEGER DEFAULT 0;
-ALTER TABLE pasien ADD COLUMN IF NOT EXISTS status_bayar TEXT DEFAULT 'Belum Bayar';`;
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS status_bayar TEXT DEFAULT 'Belum Bayar';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS metode_bayar TEXT DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_invoice TEXT DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS rincian JSONB DEFAULT '[]'::jsonb;`;
+
+function genInvoice(nomor: number) {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  return `INV-${ymd}-${String(nomor).padStart(3, "0")}`;
+}
 
 function padNo(n: number) { return String(n).padStart(3, "0"); }
 function fmtRupiah(n: number) { return "Rp " + n.toLocaleString("id-ID"); }
@@ -27,9 +41,10 @@ export default function KasirPage() {
   const [saving, setSaving] = useState<number | null>(null); // nomor_antrian being saved
   const [toast, setToast] = useState<string | null>(null);
   // Local edits: map nomor_antrian → {biaya, status_bayar}
-  const [edits, setEdits] = useState<Map<number, { biaya: string; status_bayar: string }>>(new Map());
-  const [notaModal, setNotaModal] = useState<{ p: Pasien; biaya: number } | null>(null);
+  const [edits, setEdits] = useState<Map<number, { biaya: string; status_bayar: string; metode_bayar: string }>>(new Map());
+  const [notaModal, setNotaModal] = useState<{ p: Pasien; biaya: number; invoice: string; metode: string; rincian: Item[] } | null>(null);
   const [presetTarif, setPresetTarif] = useState<number[]>(BIAYA_PRESET);
+  const [rincianModal, setRincianModal] = useState<{ p: Pasien; items: Item[] } | null>(null);
 
   const today = getTodayRange();
 
@@ -48,7 +63,7 @@ export default function KasirPage() {
 
   const fetchPasien = useCallback(async () => {
     const { data, error } = await supabase.from("pasien")
-      .select("nomor_antrian, nama, keluhan, status, created_at, no_hp, biaya, status_bayar")
+      .select("*")
       .gte("created_at", today.start).lte("created_at", today.end)
       .order("nomor_antrian", { ascending: true });
 
@@ -71,27 +86,44 @@ export default function KasirPage() {
   }, [fetchPasien]);
 
   function getEdit(p: Pasien) {
-    return edits.get(p.nomor_antrian) ?? { biaya: String(p.biaya ?? 0), status_bayar: p.status_bayar ?? "Belum Bayar" };
+    return edits.get(p.nomor_antrian) ?? {
+      biaya: String(p.biaya ?? 0),
+      status_bayar: p.status_bayar ?? "Belum Bayar",
+      metode_bayar: p.metode_bayar ?? "",
+    };
   }
 
-  function setEdit(nomor: number, patch: Partial<{ biaya: string; status_bayar: string }>) {
+  function setEdit(nomor: number, patch: Partial<{ biaya: string; status_bayar: string; metode_bayar: string }>) {
     setEdits(m => {
-      const cur = m.get(nomor) ?? { biaya: "0", status_bayar: "Belum Bayar" };
+      const cur = m.get(nomor) ?? { biaya: "0", status_bayar: "Belum Bayar", metode_bayar: "" };
       const next = new Map(m);
       next.set(nomor, { ...cur, ...patch });
       return next;
     });
   }
 
+  // Update DB dgn fallback: jika kolom baru (metode/invoice/rincian) belum ada,
+  // simpan kolom inti (biaya+status) saja agar tidak hard-fail.
+  async function persistPayment(p: Pasien, payload: Record<string, unknown>) {
+    const { start, end } = getTodayRange();
+    const sel = () => supabase.from("pasien").update(payload)
+      .eq("nomor_antrian", p.nomor_antrian).gte("created_at", start).lte("created_at", end);
+    let { error } = await sel();
+    if (error && /column|PGRST204|schema cache/i.test(`${error.message} ${error.code}`)) {
+      const base: Record<string, unknown> = {};
+      if ("biaya" in payload) base.biaya = payload.biaya;
+      if ("status_bayar" in payload) base.status_bayar = payload.status_bayar;
+      ({ error } = await supabase.from("pasien").update(base)
+        .eq("nomor_antrian", p.nomor_antrian).gte("created_at", start).lte("created_at", end));
+    }
+    return error;
+  }
+
   async function saveRow(p: Pasien) {
     const edit = getEdit(p);
     const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
     setSaving(p.nomor_antrian);
-    const { start, end } = getTodayRange();
-    const { error } = await supabase.from("pasien")
-      .update({ biaya, status_bayar: edit.status_bayar })
-      .eq("nomor_antrian", p.nomor_antrian)
-      .gte("created_at", start).lte("created_at", end);
+    const error = await persistPayment(p, { biaya, status_bayar: edit.status_bayar, metode_bayar: edit.metode_bayar || "" });
     if (error) {
       setToast(`Gagal: ${error.message}`);
     } else {
@@ -104,27 +136,44 @@ export default function KasirPage() {
 
   async function quickLunas(p: Pasien) {
     const edit = getEdit(p);
-    setEdit(p.nomor_antrian, { status_bayar: "Lunas" });
     const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
-    const { start, end } = getTodayRange();
-    await supabase.from("pasien").update({ biaya, status_bayar: "Lunas" })
-      .eq("nomor_antrian", p.nomor_antrian)
-      .gte("created_at", start).lte("created_at", end);
+    const metode = edit.metode_bayar || "Tunai";
+    const invoice = p.nomor_invoice || genInvoice(p.nomor_antrian);
+    setEdit(p.nomor_antrian, { status_bayar: "Lunas", metode_bayar: metode });
+    const error = await persistPayment(p, { biaya, status_bayar: "Lunas", metode_bayar: metode, nomor_invoice: invoice });
+    if (error) { setToast(`Gagal: ${error.message}`); setTimeout(() => setToast(null), 3500); }
     fetchPasien();
+  }
+
+  async function saveRincian() {
+    if (!rincianModal) return;
+    const { p, items } = rincianModal;
+    const clean = items.filter(it => it.nama.trim() !== "" || it.harga > 0);
+    const total = clean.reduce((s, it) => s + (it.harga || 0), 0);
+    setEdit(p.nomor_antrian, { biaya: String(total) });
+    const error = await persistPayment(p, { biaya: total, rincian: clean });
+    if (error) setToast(`Gagal simpan rincian: ${error.message}`);
+    else { setToast(`✓ Rincian ${p.nama} — ${fmtRupiah(total)}`); setRincianModal(null); fetchPasien(); }
+    setTimeout(() => setToast(null), 3500);
   }
 
   function openNota(p: Pasien) {
     const edit = getEdit(p);
     const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
-    setNotaModal({ p, biaya });
+    const invoice = p.nomor_invoice || genInvoice(p.nomor_antrian);
+    const metode = edit.metode_bayar || p.metode_bayar || "Tunai";
+    const rincian = Array.isArray(p.rincian) ? p.rincian : [];
+    setNotaModal({ p, biaya, invoice, metode, rincian });
   }
 
   function sendWABayar(p: Pasien) {
     if (!p.no_hp) { setToast("Nomor HP pasien tidak tersedia"); setTimeout(() => setToast(null), 3000); return; }
     const edit = getEdit(p);
     const biaya = parseInt(edit.biaya.replace(/\D/g, "")) || 0;
+    const invoice = p.nomor_invoice || genInvoice(p.nomor_antrian);
+    const metode = edit.metode_bayar || p.metode_bayar || "Tunai";
     const phone = p.no_hp.replace(/\D/g, "").replace(/^0/, "62");
-    const msg = `Yth. ${p.nama},\n\nTerima kasih telah berkunjung ke Klinik & RB Afina.\n\nRincian pembayaran:\n• Keluhan: ${p.keluhan}\n• Total Biaya: ${fmtRupiah(biaya)}\n• Status: LUNAS ✓\n• Tanggal: ${new Date().toLocaleDateString("id-ID")}\n\nSemoga lekas sembuh 🙏`;
+    const msg = `Yth. ${p.nama},\n\nTerima kasih telah berkunjung ke Klinik & RB Afina.\n\nRincian pembayaran:\n• No. Invoice: ${invoice}\n• Keluhan: ${p.keluhan}\n• Total Biaya: ${fmtRupiah(biaya)}\n• Metode: ${metode}\n• Status: LUNAS ✓\n• Tanggal: ${new Date().toLocaleDateString("id-ID")}\n\nSemoga lekas sembuh 🙏`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
@@ -185,11 +234,12 @@ export default function KasirPage() {
             </div>
             <div style={{ borderTop: "1px dashed #ddd", borderBottom: "1px dashed #ddd", padding: "16px 0", margin: "0 0 16px" }}>
               {[
+                { label: "No. Invoice", val: notaModal.invoice },
                 { label: "No. Antrian", val: padNo(notaModal.p.nomor_antrian) },
                 { label: "Nama Pasien", val: notaModal.p.nama },
-                { label: "Keluhan", val: notaModal.p.keluhan },
                 { label: "Tanggal", val: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) },
                 { label: "Waktu", val: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) },
+                { label: "Metode Bayar", val: notaModal.metode },
               ].map(({ label, val }) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "8px" }}>
                   <span style={{ fontSize: "12px", color: "#888", fontWeight: 600, flexShrink: 0 }}>{label}</span>
@@ -197,6 +247,19 @@ export default function KasirPage() {
                 </div>
               ))}
             </div>
+
+            {/* Rincian item (jika ada) */}
+            {notaModal.rincian.length > 0 && (
+              <div style={{ marginBottom: "16px" }}>
+                <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>Rincian</p>
+                {notaModal.rincian.map((it, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "12px", color: "#444" }}>{it.nama || "Item"}</span>
+                    <span style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600 }}>{fmtRupiah(it.harga || 0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ background: "#f0fdf4", borderRadius: "12px", padding: "14px", textAlign: "center", marginBottom: "20px" }}>
               <p style={{ fontSize: "11px", color: "#059669", fontWeight: 700, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Pembayaran</p>
               <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: 0 }}>{fmtRupiah(notaModal.biaya)}</p>
@@ -216,6 +279,52 @@ export default function KasirPage() {
           </div>
         </div>
       )}
+
+      {/* Rincian Item Modal */}
+      {rincianModal && (() => {
+        const total = rincianModal.items.reduce((s, it) => s + (it.harga || 0), 0);
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9100, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+            onClick={e => { if (e.target === e.currentTarget) setRincianModal(null); }}>
+            <div style={{ background: "var(--bg-card)", borderRadius: "18px", padding: "24px", width: "100%", maxWidth: "440px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>Rincian Pembayaran</h3>
+                <button onClick={() => setRincianModal(null)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="var(--text-secondary)" /></button>
+              </div>
+              <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--text-secondary)" }}>No. {padNo(rincianModal.p.nomor_antrian)} · {rincianModal.p.nama}</p>
+
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
+                {ITEM_PRESET.map(n => (
+                  <button key={n} className="preset-btn" onClick={() => setRincianModal(rm => rm ? { ...rm, items: [...rm.items, { nama: n, harga: 0 }] } : rm)}>+ {n}</button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                {rincianModal.items.map((it, i) => (
+                  <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <input className="biaya-input" style={{ flex: 1, width: "auto" }} placeholder="Nama item" value={it.nama}
+                      onChange={e => setRincianModal(rm => { if (!rm) return rm; const items = [...rm.items]; items[i] = { ...items[i], nama: e.target.value }; return { ...rm, items }; })} />
+                    <input className="biaya-input" style={{ width: "110px" }} placeholder="0" inputMode="numeric" value={it.harga ? String(it.harga) : ""}
+                      onChange={e => setRincianModal(rm => { if (!rm) return rm; const items = [...rm.items]; items[i] = { ...items[i], harga: parseInt(e.target.value.replace(/\D/g, "")) || 0 }; return { ...rm, items }; })} />
+                    <button onClick={() => setRincianModal(rm => rm ? { ...rm, items: rm.items.filter((_, j) => j !== i) } : rm)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", display: "flex" }}><X size={15} /></button>
+                  </div>
+                ))}
+                <button className="preset-btn" style={{ alignSelf: "flex-start" }} onClick={() => setRincianModal(rm => rm ? { ...rm, items: [...rm.items, { nama: "", harga: 0 }] } : rm)}>+ Baris kosong</button>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: "1px dashed var(--border-color)", marginBottom: "16px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>Total</span>
+                <span style={{ fontSize: "20px", fontWeight: 900, color: "var(--accent)" }}>{fmtRupiah(total)}</span>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={saveRincian} style={{ flex: 1, background: "var(--accent)", border: "none", borderRadius: "10px", padding: "11px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>Simpan Rincian (set Biaya)</button>
+                <button onClick={() => setRincianModal(null)} style={{ flex: "0 0 auto", padding: "11px 18px", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "10px", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Batal</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast */}
       {toast && (
@@ -341,12 +450,22 @@ export default function KasirPage() {
                               </button>
                             ))}
                           </div>
+                          <button className="preset-btn" onClick={() => setRincianModal({ p, items: (Array.isArray(p.rincian) && p.rincian.length ? p.rincian.map(it => ({ ...it })) : [{ nama: "Jasa Konsultasi", harga: 0 }]) })}
+                            style={{ alignSelf: "flex-start", color: "var(--accent)", borderColor: "rgba(108,92,231,0.3)" }}>
+                            + Rincian item
+                          </button>
                         </div>
                       ) : <span style={{ color: "var(--text-secondary)", fontSize: "12px" }}>—</span>}
                     </td>
                     <td style={{ padding: "14px 18px" }}>
                       {colsOk ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                          <select className="biaya-input" style={{ width: "auto", padding: "6px 8px" }}
+                            value={edit.metode_bayar || ""}
+                            onChange={e => setEdit(p.nomor_antrian, { metode_bayar: e.target.value })}>
+                            <option value="">Metode…</option>
+                            {METODE_BAYAR.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
                           {isLunas ? (<>
                             <span style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", background: "rgba(16,185,129,0.1)", color: "#059669", fontSize: "12px", fontWeight: 700, border: "1px solid rgba(16,185,129,0.25)" }}>
                               <CheckCircle2 size={13} /> Lunas

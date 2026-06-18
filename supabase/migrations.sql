@@ -869,3 +869,15 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Verifikasi:
 -- SELECT id, jadwal, tarif_umum, tarif_bpjs, tarif_igd FROM pengaturan WHERE id = 1;
+
+-- ============================================================
+-- LANGKAH 17: billing (metode bayar, invoice, rincian) — lihat JALANKAN_LANGKAH_17.sql
+-- ============================================================
+
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS metode_bayar  text  DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS nomor_invoice text  DEFAULT '';
+ALTER TABLE pasien ADD COLUMN IF NOT EXISTS rincian       jsonb DEFAULT '[]'::jsonb;
+
+-- Verifikasi:
+-- SELECT nomor_antrian, biaya, metode_bayar, nomor_invoice, rincian
+--   FROM pasien WHERE nomor_invoice <> '' LIMIT 5;
