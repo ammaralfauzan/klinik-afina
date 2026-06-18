@@ -5,6 +5,7 @@ export function getTodayRange() {
   return {
     start: start.toISOString(),
     end: end.toISOString(),
-    date: start.toISOString().split("T")[0],
+    // Tanggal LOKAL (bukan UTC) — penting untuk WIB agar tidak mundur 1 hari.
+    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
   };
 }
