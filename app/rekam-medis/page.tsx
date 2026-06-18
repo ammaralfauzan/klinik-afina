@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { getTodayRange } from "../../lib/utils";
-import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope, Printer } from "lucide-react";
+import { FileText, Save, X, CheckCircle2, AlertTriangle, Copy, Check, Clock, Stethoscope, Printer, Lock } from "lucide-react";
 
 type Pasien = {
   nomor_antrian: number; nama: string; keluhan: string;
@@ -14,9 +14,11 @@ type RM = {
   pasien_nama: string; pasien_keluhan: string;
   diagnosa: string; tindakan: string; obat: string; catatan: string; dokter: string;
   td?: string; suhu?: string; berat?: string; tinggi?: string; saturasi?: string;
+  anamnesa?: string; pemeriksaan_fisik?: string;
+  finalized?: boolean; finalized_at?: string;
 };
 
-const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum", td: "", suhu: "", berat: "", tinggi: "", saturasi: "" };
+const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum", td: "", suhu: "", berat: "", tinggi: "", saturasi: "", anamnesa: "", pemeriksaan_fisik: "" };
 
 // ICD-10 diagnosa chips dengan kode
 const DIAGNOSA_CHIPS = [
@@ -180,12 +182,12 @@ export default function RekamMedisPage() {
     setModal(null);
   }
 
-  async function saveRM() {
+  async function saveRM(finalize = false) {
     if (!modal) return;
     setSaving(true);
     const key = rmKey(modal.pasien.nomor_antrian, modal.pasien.nama);
     const existing = rmMap.get(key);
-    const payload = {
+    const payload: Record<string, unknown> = {
       nomor_antrian: modal.pasien.nomor_antrian,
       visit_date: today.date,
       pasien_nama: modal.pasien.nama,
@@ -200,20 +202,30 @@ export default function RekamMedisPage() {
       berat: modal.rm.berat || "",
       tinggi: modal.rm.tinggi || "",
       saturasi: modal.rm.saturasi || "",
+      anamnesa: modal.rm.anamnesa || "",
+      pemeriksaan_fisik: modal.rm.pemeriksaan_fisik || "",
       updated_at: new Date().toISOString(),
     };
+    if (finalize) { payload.finalized = true; payload.finalized_at = new Date().toISOString(); }
 
-    let error;
-    if (existing?.id) {
-      ({ error } = await supabase.from("rekam_medis").update(payload).eq("id", existing.id));
-    } else {
-      ({ error } = await supabase.from("rekam_medis").insert([payload]));
+    // Kolom baru (SOAP/finalisasi) mungkin belum ada -> fallback ke kolom inti.
+    const COLS_BARU = ["anamnesa", "pemeriksaan_fisik", "finalized", "finalized_at"];
+    async function write(body: Record<string, unknown>) {
+      if (existing?.id) return supabase.from("rekam_medis").update(body).eq("id", existing.id);
+      return supabase.from("rekam_medis").insert([body]);
+    }
+    let { error } = await write(payload);
+    if (error && /column|PGRST204|schema cache/i.test(`${error.message} ${error.code}`)) {
+      const base = { ...payload };
+      COLS_BARU.forEach(c => delete base[c]);
+      if (finalize) setToast({ type: "error", msg: "Jalankan Langkah 18 dulu agar fitur kunci aktif. Data tersimpan tanpa dikunci." });
+      ({ error } = await write(base));
     }
 
     if (error) {
       setToast({ type: "error", msg: `Gagal menyimpan: ${error.message}` });
     } else {
-      setToast({ type: "success", msg: `Rekam medis ${modal.pasien.nama} berhasil disimpan` });
+      setToast({ type: "success", msg: finalize ? `Rekam medis ${modal.pasien.nama} difinalisasi & dikunci` : `Rekam medis ${modal.pasien.nama} berhasil disimpan` });
       setModal(null);
       fetchData();
     }
@@ -246,6 +258,11 @@ export default function RekamMedisPage() {
         .rm-input { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 13px; font-size: 13px; color: var(--text-primary); outline: none; transition: border 0.2s; font-family: inherit; box-sizing: border-box; resize: none; }
         .rm-input:focus { border-color: var(--accent); }
         .rm-label { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px; }
+        .soap-head { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; }
+        .soap-badge { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .soap-title { font-size: 12px; font-weight: 800; color: var(--text-primary); }
+        .soap-sub { font-size: 11px; color: var(--text-secondary); }
+        .rm-input:disabled, .rm-input[readonly] { opacity: 0.7; cursor: not-allowed; background: var(--bg-main); }
         .chip-btn { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
         .chip-btn:hover { background: rgba(108,92,231,0.1); border-color: rgba(108,92,231,0.3); color: var(--accent); }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -414,6 +431,7 @@ export default function RekamMedisPage() {
               ) : pasienList.map((p) => {
                 const key = rmKey(p.nomor_antrian, p.nama);
                 const hasRM = rmMap.has(key);
+                const isFin = !!rmMap.get(key)?.finalized;
                 const canFill = p.status === "Sedang Diperiksa" || p.status === "Selesai";
                 return (
                   <tr key={p.nomor_antrian} className="rm-row" style={{ borderBottom: "1px solid var(--border-color)", transition: "background 0.15s" }}>
@@ -429,8 +447,8 @@ export default function RekamMedisPage() {
                       {tableOk && canFill ? (
                         <button className="rm-btn" onClick={() => openModal(p)}
                           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: hasRM ? "rgba(16,185,129,0.1)" : "rgba(108,92,231,0.1)", color: hasRM ? "#059669" : "var(--accent)" }}>
-                          {hasRM ? <CheckCircle2 size={13} /> : <FileText size={13} />}
-                          {hasRM ? "Lihat / Edit" : "Isi Sekarang"}
+                          {isFin ? <Lock size={13} /> : hasRM ? <CheckCircle2 size={13} /> : <FileText size={13} />}
+                          {isFin ? "Terkunci" : hasRM ? "Lihat / Edit" : "Isi Sekarang"}
                         </button>
                       ) : (
                         <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
@@ -648,7 +666,9 @@ export default function RekamMedisPage() {
       )}
 
       {/* Modal */}
-      {modal && (
+      {modal && (() => {
+        const locked = !!modal.rm.finalized;
+        return (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null); }}>
           <div className="modal-card">
             {/* Header */}
@@ -657,6 +677,7 @@ export default function RekamMedisPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                   <Stethoscope size={16} color="var(--accent)" />
                   <span style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)" }}>Rekam Medis</span>
+                  {locked && <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(16,185,129,0.12)", color: "#059669", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "20px", padding: "2px 9px", fontSize: "10px", fontWeight: 800 }}><Lock size={10} /> TERKUNCI</span>}
                 </div>
                 <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>No. {padNo(modal.pasien.nomor_antrian)} · {modal.pasien.nama} · {modal.pasien.keluhan}</p>
               </div>
@@ -665,18 +686,34 @@ export default function RekamMedisPage() {
               </button>
             </div>
 
-            {/* Form */}
-            <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Form — SOAP */}
+            <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: "18px" }}>
+              {locked && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: "10px", padding: "10px 14px" }}>
+                  <Lock size={14} color="#059669" />
+                  <span style={{ fontSize: "12px", color: "#059669", fontWeight: 600 }}>
+                    Rekam medis sudah difinalisasi & dikunci{modal.rm.finalized_at ? ` (${new Date(modal.rm.finalized_at).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })})` : ""}. Tidak dapat diubah.
+                  </span>
+                </div>
+              )}
+
               {/* Dokter */}
               <div>
                 <label className="rm-label">Dokter Pemeriksa</label>
-                <input className="rm-input" value={modal.rm.dokter || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, dokter: e.target.value } } : m)} placeholder="Nama dokter..." />
+                <input className="rm-input" readOnly={locked} value={modal.rm.dokter || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, dokter: e.target.value } } : m)} placeholder="Nama dokter..." />
               </div>
 
-              {/* Vital Signs */}
+              {/* S — Subjektif */}
               <div>
-                <label className="rm-label">Tanda Vital</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                <div className="soap-head"><span className="soap-badge">S</span><span className="soap-title">Subjektif</span><span className="soap-sub">— keluhan & anamnesa</span></div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 6px" }}>Keluhan utama: <strong style={{ color: "var(--text-primary)" }}>{modal.pasien.keluhan || "—"}</strong></p>
+                <textarea className="rm-input" rows={2} readOnly={locked} value={modal.rm.anamnesa || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, anamnesa: e.target.value } } : m)} placeholder="Anamnesa: riwayat penyakit sekarang, durasi, riwayat alergi/penyakit terdahulu..." />
+              </div>
+
+              {/* O — Objektif */}
+              <div>
+                <div className="soap-head"><span className="soap-badge">O</span><span className="soap-title">Objektif</span><span className="soap-sub">— tanda vital & pemeriksaan fisik</span></div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "8px" }}>
                   {[
                     { key: "td", label: "TD (mmHg)", placeholder: "120/80" },
                     { key: "suhu", label: "Suhu (°C)", placeholder: "36.5" },
@@ -689,6 +726,7 @@ export default function RekamMedisPage() {
                       <input
                         className="rm-input"
                         style={{ padding: "7px 10px" }}
+                        readOnly={locked}
                         value={(modal.rm as Record<string, string>)[key] || ""}
                         onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, [key]: e.target.value } } : m)}
                         placeholder={placeholder}
@@ -696,49 +734,54 @@ export default function RekamMedisPage() {
                     </div>
                   ))}
                 </div>
+                <textarea className="rm-input" rows={2} readOnly={locked} value={modal.rm.pemeriksaan_fisik || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, pemeriksaan_fisik: e.target.value } } : m)} placeholder="Pemeriksaan fisik: kondisi umum, kepala/leher, thorax, abdomen, ekstremitas..." />
               </div>
 
-              {/* Diagnosa */}
+              {/* A — Assessment */}
               <div>
-                <label className="rm-label">Diagnosa <span style={{ color: "#ef4444" }}>*</span></label>
-                <textarea className="rm-input" rows={2} value={modal.rm.diagnosa || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, diagnosa: e.target.value } } : m)} placeholder="Tulis diagnosa..." />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
-                  {DIAGNOSA_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("diagnosa", c)}>+ {c}</button>)}
-                </div>
+                <div className="soap-head"><span className="soap-badge">A</span><span className="soap-title">Assessment</span><span className="soap-sub">— diagnosa (ICD-10)</span> <span style={{ color: "#ef4444" }}>*</span></div>
+                <textarea className="rm-input" rows={2} readOnly={locked} value={modal.rm.diagnosa || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, diagnosa: e.target.value } } : m)} placeholder="Diagnosa kerja (pilih chip ICD-10 di bawah atau tulis manual)..." />
+                {!locked && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
+                    {DIAGNOSA_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("diagnosa", c)}>+ {c}</button>)}
+                  </div>
+                )}
               </div>
 
-              {/* Tindakan */}
+              {/* P — Plan */}
               <div>
-                <label className="rm-label">Tindakan</label>
-                <textarea className="rm-input" rows={2} value={modal.rm.tindakan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, tindakan: e.target.value } } : m)} placeholder="Tindakan medis yang dilakukan..." />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
-                  {TINDAKAN_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("tindakan", c)}>+ {c}</button>)}
-                </div>
-              </div>
-
-              {/* Obat */}
-              <div>
-                <label className="rm-label">Obat yang Diberikan</label>
-                <textarea className="rm-input" rows={3} value={modal.rm.obat || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, obat: e.target.value } } : m)} placeholder="Daftar obat & dosis, satu baris per obat..." />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "7px" }}>
-                  {OBAT_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("obat", c)}>+ {c}</button>)}
-                </div>
-              </div>
-
-              {/* Catatan */}
-              <div>
-                <label className="rm-label">Catatan Tambahan</label>
-                <textarea className="rm-input" rows={2} value={modal.rm.catatan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, catatan: e.target.value } } : m)} placeholder="Catatan, saran, kontrol kembali..." />
+                <div className="soap-head"><span className="soap-badge">P</span><span className="soap-title">Plan</span><span className="soap-sub">— tindakan, terapi/obat, catatan</span></div>
+                <textarea className="rm-input" rows={2} readOnly={locked} value={modal.rm.tindakan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, tindakan: e.target.value } } : m)} placeholder="Tindakan medis yang dilakukan..." />
+                {!locked && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "7px 0 0" }}>
+                    {TINDAKAN_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("tindakan", c)}>+ {c}</button>)}
+                  </div>
+                )}
+                <textarea className="rm-input" rows={3} readOnly={locked} style={{ marginTop: "10px" }} value={modal.rm.obat || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, obat: e.target.value } } : m)} placeholder="Terapi / obat & dosis, satu baris per obat..." />
+                {!locked && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", margin: "7px 0 0" }}>
+                    {OBAT_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("obat", c)}>+ {c}</button>)}
+                  </div>
+                )}
+                <textarea className="rm-input" rows={2} readOnly={locked} style={{ marginTop: "10px" }} value={modal.rm.catatan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, catatan: e.target.value } } : m)} placeholder="Catatan tambahan, saran, jadwal kontrol kembali..." />
               </div>
             </div>
 
             {/* Footer */}
             <div style={{ padding: "16px 24px 22px", borderTop: "1px solid var(--border-color)", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <button onClick={saveRM} disabled={saving} className="rm-btn"
-                style={{ flex: 1, minWidth: "140px", background: "var(--accent)", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", opacity: saving ? 0.7 : 1 }}>
-                {saving ? <span style={{ width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} /> : <Save size={14} />}
-                {saving ? "Menyimpan..." : "Simpan Rekam Medis"}
-              </button>
+              {!locked && (
+                <button onClick={() => saveRM(false)} disabled={saving} className="rm-btn"
+                  style={{ flex: 1, minWidth: "140px", background: "var(--accent)", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", opacity: saving ? 0.7 : 1 }}>
+                  {saving ? <span style={{ width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} /> : <Save size={14} />}
+                  {saving ? "Menyimpan..." : "Simpan"}
+                </button>
+              )}
+              {!locked && modal.rm.diagnosa && rmMap.has(rmKey(modal.pasien.nomor_antrian, modal.pasien.nama)) && (
+                <button onClick={() => { if (window.confirm("Finalisasi & kunci rekam medis ini? Setelah dikunci, isinya tidak dapat diubah lagi.")) saveRM(true); }} disabled={saving} className="rm-btn"
+                  style={{ padding: "12px 16px", borderRadius: "12px", border: "none", background: "#059669", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: saving ? 0.7 : 1 }}>
+                  <Lock size={13} /> Finalisasi & Kunci
+                </button>
+              )}
               {rmMap.has(rmKey(modal.pasien.nomor_antrian, modal.pasien.nama)) && (
                 <button onClick={() => { const rm = rmMap.get(rmKey(modal.pasien.nomor_antrian, modal.pasien.nama)); if (rm) setResepModal(rm); setModal(null); }} className="rm-btn"
                   style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(108,92,231,0.25)", background: "rgba(108,92,231,0.08)", color: "var(--accent)", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -754,12 +797,13 @@ export default function RekamMedisPage() {
                 <FileText size={13} /> Surat Rujukan
               </button>
               <button onClick={() => setModal(null)} style={{ padding: "12px 20px", borderRadius: "12px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
-                Batal
+                {locked ? "Tutup" : "Batal"}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
