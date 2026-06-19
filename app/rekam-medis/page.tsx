@@ -9,6 +9,9 @@ type Pasien = {
   status: string; created_at: string; no_hp?: string;
 };
 
+type ResepItem = { obat_id: string; nama: string; satuan: string; harga: number; qty: number; aturan: string };
+type ObatMaster = { id: string; nama: string; satuan: string; harga: number; stok: number; aktif: boolean };
+
 type RM = {
   id?: string; nomor_antrian: number; visit_date: string;
   pasien_nama: string; pasien_keluhan: string;
@@ -16,9 +19,10 @@ type RM = {
   td?: string; suhu?: string; berat?: string; tinggi?: string; saturasi?: string;
   anamnesa?: string; pemeriksaan_fisik?: string;
   finalized?: boolean; finalized_at?: string;
+  resep?: ResepItem[];
 };
 
-const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum", td: "", suhu: "", berat: "", tinggi: "", saturasi: "", anamnesa: "", pemeriksaan_fisik: "" };
+const EMPTY_RM = { diagnosa: "", tindakan: "", obat: "", catatan: "", dokter: "dr. Umum", td: "", suhu: "", berat: "", tinggi: "", saturasi: "", anamnesa: "", pemeriksaan_fisik: "", resep: [] as ResepItem[] };
 
 // ICD-10 diagnosa chips dengan kode
 const DIAGNOSA_CHIPS = [
@@ -77,6 +81,8 @@ export default function RekamMedisPage() {
   const [klinik, setKlinik] = useState({ nama_klinik: "Klinik & RB Afina", alamat: "", telepon: "" });
   const [suratModal, setSuratModal] = useState<{ jenis: "sakit" | "rujukan"; nama: string; diagnosa: string; dokter: string } | null>(null);
   const [suratForm, setSuratForm] = useState({ umur: "", jenis_kelamin: "", alamat: "", lama: "3", mulai: "", tujuan: "", alasan: "" });
+  const [obatMaster, setObatMaster] = useState<ObatMaster[]>([]);
+  const [resepPick, setResepPick] = useState<{ obat_id: string; qty: string; aturan: string }>({ obat_id: "", qty: "1", aturan: "3x1" });
 
   const today = getTodayRange();
 
@@ -148,7 +154,7 @@ export default function RekamMedisPage() {
     });
   }
 
-  // Profil klinik untuk kop surat
+  // Profil klinik untuk kop surat + master obat untuk e-resep
   useEffect(() => {
     supabase.from("pengaturan").select("nama_klinik, alamat, telepon").eq("id", 1).single().then(({ data }) => {
       if (data) setKlinik({
@@ -156,7 +162,36 @@ export default function RekamMedisPage() {
         alamat: data.alamat || "", telepon: data.telepon || "",
       });
     });
+    supabase.from("obat").select("id, nama, satuan, harga, stok, aktif").order("nama").then(({ data }) => {
+      if (data) setObatMaster((data as ObatMaster[]).filter(o => o.aktif));
+    });
   }, []);
+
+  // Tambah obat dari master ke resep terstruktur + sinkron teks obat.
+  function addResepItem() {
+    if (!modal || !resepPick.obat_id) return;
+    const o = obatMaster.find(x => x.id === resepPick.obat_id);
+    if (!o) return;
+    const qty = Math.max(1, parseInt(resepPick.qty.replace(/\D/g, "")) || 1);
+    const item: ResepItem = { obat_id: o.id, nama: o.nama, satuan: o.satuan, harga: o.harga, qty, aturan: resepPick.aturan.trim() };
+    setModal(m => {
+      if (!m) return m;
+      const resep = [...((m.rm.resep as ResepItem[]) || []), item];
+      const teks = `${o.nama} ${qty} ${o.satuan}${item.aturan ? ` (${item.aturan})` : ""}`;
+      const obat = m.rm.obat ? `${m.rm.obat}\n${teks}` : teks;
+      return { ...m, rm: { ...m.rm, resep, obat } };
+    });
+    setResepPick({ obat_id: "", qty: "1", aturan: "3x1" });
+  }
+
+  function removeResepItem(idx: number) {
+    setModal(m => {
+      if (!m) return m;
+      const resep = [...((m.rm.resep as ResepItem[]) || [])];
+      resep.splice(idx, 1);
+      return { ...m, rm: { ...m.rm, resep } };
+    });
+  }
 
   // Buka surat (sakit / rujukan) — auto-isi identitas pasien hari ini.
   async function openSurat(jenis: "sakit" | "rujukan") {
@@ -204,12 +239,16 @@ export default function RekamMedisPage() {
       saturasi: modal.rm.saturasi || "",
       anamnesa: modal.rm.anamnesa || "",
       pemeriksaan_fisik: modal.rm.pemeriksaan_fisik || "",
+      resep: (modal.rm.resep as ResepItem[]) || [],
       updated_at: new Date().toISOString(),
     };
     if (finalize) { payload.finalized = true; payload.finalized_at = new Date().toISOString(); }
 
-    // Kolom baru (SOAP/finalisasi) mungkin belum ada -> fallback ke kolom inti.
-    const COLS_BARU = ["anamnesa", "pemeriksaan_fisik", "finalized", "finalized_at"];
+    const resepItems = (modal.rm.resep as ResepItem[]) || [];
+    const nomorAntrian = modal.pasien.nomor_antrian;
+
+    // Kolom baru (SOAP/finalisasi/resep) mungkin belum ada -> fallback ke kolom inti.
+    const COLS_BARU = ["anamnesa", "pemeriksaan_fisik", "finalized", "finalized_at", "resep"];
     async function write(body: Record<string, unknown>) {
       if (existing?.id) return supabase.from("rekam_medis").update(body).eq("id", existing.id);
       return supabase.from("rekam_medis").insert([body]);
@@ -224,13 +263,32 @@ export default function RekamMedisPage() {
 
     if (error) {
       setToast({ type: "error", msg: `Gagal menyimpan: ${error.message}` });
-    } else {
-      setToast({ type: "success", msg: finalize ? `Rekam medis ${modal.pasien.nama} difinalisasi & dikunci` : `Rekam medis ${modal.pasien.nama} berhasil disimpan` });
-      setModal(null);
-      fetchData();
+      setSaving(false);
+      setTimeout(() => setToast(null), 4000);
+      return;
     }
+
+    // Finalisasi: potong stok obat + kirim biaya ke kasir (sekali, di lock).
+    let dispenseMsg = "";
+    if (finalize && resepItems.length > 0) {
+      const { data: disp, error: dErr } = await supabase.rpc("dispense_resep", {
+        p_nomor_antrian: nomorAntrian,
+        p_resep: resepItems.map(r => ({ obat_id: r.obat_id, nama: r.nama, qty: r.qty, harga: r.harga })),
+      });
+      const dispErr = (disp as { error?: string } | null)?.error;
+      if (dErr || dispErr) {
+        dispenseMsg = " (⚠️ stok/biaya obat belum terpotong — cek Apotek/Langkah 22)";
+      } else {
+        const total = (disp as { total?: number } | null)?.total || 0;
+        dispenseMsg = ` · stok dipotong, biaya obat ${total > 0 ? "Rp " + total.toLocaleString("id-ID") : "—"} masuk kasir`;
+      }
+    }
+
+    setToast({ type: "success", msg: (finalize ? `Rekam medis ${modal.pasien.nama} difinalisasi & dikunci` : `Rekam medis ${modal.pasien.nama} berhasil disimpan`) + dispenseMsg });
+    setModal(null);
+    fetchData();
     setSaving(false);
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 5000);
   }
 
   async function handleCopy() {
@@ -763,6 +821,39 @@ export default function RekamMedisPage() {
                     {OBAT_CHIPS.map(c => <button key={c} className="chip-btn" onClick={() => appendChip("obat", c)}>+ {c}</button>)}
                   </div>
                 )}
+
+                {/* e-Resep dari Apotek */}
+                {(obatMaster.length > 0 || ((modal.rm.resep as ResepItem[]) || []).length > 0) && (
+                  <div style={{ marginTop: "12px", padding: "12px", border: "1px dashed var(--border-color)", borderRadius: "10px", background: "var(--bg-main)" }}>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", margin: "0 0 8px" }}>💊 e-Resep dari Apotek <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>— stok dipotong & biaya masuk kasir saat finalisasi</span></p>
+                    {!locked && obatMaster.length > 0 && (
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                        <select className="rm-input" style={{ flex: "1 1 150px", padding: "8px 10px" }} value={resepPick.obat_id} onChange={e => setResepPick(p => ({ ...p, obat_id: e.target.value }))}>
+                          <option value="">Pilih obat…</option>
+                          {obatMaster.map(o => <option key={o.id} value={o.id} disabled={o.stok <= 0}>{o.nama} (stok {o.stok}) — Rp{o.harga.toLocaleString("id-ID")}</option>)}
+                        </select>
+                        <input className="rm-input" style={{ width: "56px", padding: "8px" }} inputMode="numeric" value={resepPick.qty} onChange={e => setResepPick(p => ({ ...p, qty: e.target.value }))} placeholder="Qty" />
+                        <input className="rm-input" style={{ width: "70px", padding: "8px" }} value={resepPick.aturan} onChange={e => setResepPick(p => ({ ...p, aturan: e.target.value }))} placeholder="3x1" />
+                        <button className="rm-btn" onClick={addResepItem} disabled={!resepPick.obat_id} style={{ padding: "8px 12px", borderRadius: "8px", border: "none", background: "var(--accent)", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: resepPick.obat_id ? "pointer" : "not-allowed", opacity: resepPick.obat_id ? 1 : 0.6 }}>Tambah</button>
+                      </div>
+                    )}
+                    {((modal.rm.resep as ResepItem[]) || []).length > 0 && (
+                      <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {((modal.rm.resep as ResepItem[]) || []).map((r, i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "5px 9px", background: "var(--bg-card)", borderRadius: "7px" }}>
+                            <span style={{ color: "var(--text-primary)" }}>{r.nama} × {r.qty} {r.satuan} {r.aturan && <span style={{ color: "var(--text-secondary)" }}>({r.aturan})</span>}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ color: "var(--text-secondary)" }}>Rp {(r.harga * r.qty).toLocaleString("id-ID")}</span>
+                              {!locked && <button onClick={() => removeResepItem(i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", display: "flex", padding: 0 }}><X size={13} /></button>}
+                            </span>
+                          </div>
+                        ))}
+                        <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0", textAlign: "right" }}>Total obat: <strong>Rp {((modal.rm.resep as ResepItem[]) || []).reduce((s, r) => s + r.harga * r.qty, 0).toLocaleString("id-ID")}</strong></p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <textarea className="rm-input" rows={2} readOnly={locked} style={{ marginTop: "10px" }} value={modal.rm.catatan || ""} onChange={e => setModal(m => m ? { ...m, rm: { ...m.rm, catatan: e.target.value } } : m)} placeholder="Catatan tambahan, saran, jadwal kontrol kembali..." />
               </div>
             </div>
