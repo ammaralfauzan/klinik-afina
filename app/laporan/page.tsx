@@ -15,6 +15,12 @@ type Pasien = {
   nomor_antrian: number; created_at: string;
   jenis_kelamin?: string; no_hp?: string;
   biaya?: number; status_bayar?: string;
+  metode_bayar?: string; nomor_invoice?: string;
+};
+
+const METODE_BAYAR = ["Tunai", "QRIS", "Transfer", "Debit/Kartu"];
+const METODE_WARNA: Record<string, string> = {
+  "Tunai": "#10b981", "QRIS": "#6C5CE7", "Transfer": "#0ea5e9", "Debit/Kartu": "#F5A623", "Lainnya": "#94a3b8",
 };
 
 type Periode = "hari" | "minggu" | "bulan" | "tahun" | "custom";
@@ -229,14 +235,29 @@ export default function LaporanPage() {
   const totalPendapatan = filtered.filter(p => p.status_bayar === "Lunas").reduce((s, p) => s + (p.biaya || 0), 0);
   const jumlahLunas = filtered.filter(p => p.status_bayar === "Lunas").length;
 
+  // Pendapatan per metode bayar (hanya transaksi Lunas)
+  const perMetode = useMemo(() => {
+    const map: Record<string, { total: number; jumlah: number }> = {};
+    filtered.filter(p => p.status_bayar === "Lunas").forEach(p => {
+      const m = METODE_BAYAR.includes(p.metode_bayar || "") ? (p.metode_bayar as string) : "Lainnya";
+      if (!map[m]) map[m] = { total: 0, jumlah: 0 };
+      map[m].total += p.biaya || 0;
+      map[m].jumlah += 1;
+    });
+    return [...METODE_BAYAR, "Lainnya"]
+      .filter(m => map[m])
+      .map(m => ({ metode: m, ...map[m] }))
+      .sort((a, b) => b.total - a.total);
+  }, [filtered]);
+
   function handleExportPDF() { window.print(); }
 
   function handleExportCSV() {
-    const headers = ["Nomor Antrian","Nama","Keluhan","Status","Jenis Kelamin","Tanggal Daftar","Biaya","Status Bayar"];
+    const headers = ["Nomor Antrian","Nama","Keluhan","Status","Jenis Kelamin","Tanggal Daftar","Biaya","Status Bayar","Metode Bayar","No. Invoice"];
     const rows = filtered.map(p => [
       p.nomor_antrian, p.nama, p.keluhan, p.status, p.jenis_kelamin || "",
       new Date(p.created_at).toLocaleString("id-ID"),
-      p.biaya || 0, p.status_bayar || "",
+      p.biaya || 0, p.status_bayar || "", p.metode_bayar || "", p.nomor_invoice || "",
     ]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -390,6 +411,34 @@ export default function LaporanPage() {
                     <p style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{s.val}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* PENDAPATAN PER METODE BAYAR */}
+            {perMetode.length > 0 && (
+              <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "24px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow)", marginBottom: "20px" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Pendapatan per Metode Bayar</h3>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "0 0 18px" }}>{PERIODE_LABELS[periode]} · hanya transaksi Lunas</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {perMetode.map(m => {
+                    const pct = totalPendapatan > 0 ? Math.round((m.total / totalPendapatan) * 100) : 0;
+                    const warna = METODE_WARNA[m.metode] || "#94a3b8";
+                    return (
+                      <div key={m.metode}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "5px" }}>
+                          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                            <span style={{ display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", background: warna, marginRight: "7px" }} />
+                            {m.metode} <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}>· {m.jumlah} transaksi</span>
+                          </span>
+                          <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>Rp {m.total.toLocaleString("id-ID")} <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>({pct}%)</span></span>
+                        </div>
+                        <div style={{ height: "8px", borderRadius: "6px", background: "var(--input-bg)", overflow: "hidden" }}>
+                          <div style={{ width: `${pct}%`, height: "100%", background: warna, borderRadius: "6px", transition: "width 0.4s" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -15,6 +15,9 @@ type Pasien = {
 
 const BIAYA_PRESET = [50000, 75000, 100000, 150000, 200000];
 const METODE_BAYAR = ["Tunai", "QRIS", "Transfer", "Debit/Kartu"];
+const METODE_WARNA: Record<string, string> = {
+  "Tunai": "#10b981", "QRIS": "#6C5CE7", "Transfer": "#0ea5e9", "Debit/Kartu": "#F5A623", "Lainnya": "#94a3b8",
+};
 const ITEM_PRESET = ["Jasa Konsultasi", "Obat", "Tindakan Medis", "Administrasi", "Pemeriksaan"];
 
 const MIGRATION_SQL = `-- Jalankan di Supabase Dashboard → SQL Editor
@@ -45,6 +48,7 @@ export default function KasirPage() {
   const [notaModal, setNotaModal] = useState<{ p: Pasien; biaya: number; invoice: string; metode: string; rincian: Item[] } | null>(null);
   const [presetTarif, setPresetTarif] = useState<number[]>(BIAYA_PRESET);
   const [rincianModal, setRincianModal] = useState<{ p: Pasien; items: Item[] } | null>(null);
+  const [tutupKasOpen, setTutupKasOpen] = useState(false);
 
   const today = getTodayRange();
 
@@ -326,6 +330,88 @@ export default function KasirPage() {
         );
       })()}
 
+      {/* Tutup Kas Modal */}
+      {tutupKasOpen && (() => {
+        const num = (s: string) => parseInt(s.replace(/\D/g, "")) || 0;
+        const lunas = pasienList.filter(p => getEdit(p).status_bayar === "Lunas");
+        const totalLunas = lunas.reduce((s, p) => s + num(getEdit(p).biaya), 0);
+        const belum = pasienList.filter(p => p.status === "Selesai" && getEdit(p).status_bayar !== "Lunas");
+        const totalBelum = belum.reduce((s, p) => s + num(getEdit(p).biaya), 0);
+        const metMap: Record<string, { total: number; jumlah: number }> = {};
+        lunas.forEach(p => {
+          const mb = getEdit(p).metode_bayar;
+          const m = METODE_BAYAR.includes(mb) ? mb : "Lainnya";
+          if (!metMap[m]) metMap[m] = { total: 0, jumlah: 0 };
+          metMap[m].total += num(getEdit(p).biaya); metMap[m].jumlah += 1;
+        });
+        const metList = [...METODE_BAYAR, "Lainnya"].filter(m => metMap[m]).map(m => ({ metode: m, ...metMap[m] }));
+        return (
+          <div className="nota-overlay" onClick={e => { if (e.target === e.currentTarget) setTutupKasOpen(false); }}>
+            <div className="nota-card" style={{ maxWidth: "400px" }}>
+              <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                <p style={{ fontSize: "15px", fontWeight: 800, color: "#6C5CE7", margin: 0 }}>Klinik & RB Afina</p>
+                <p style={{ fontSize: "12px", color: "#888", margin: "2px 0 0" }}>Laporan Tutup Kas Harian</p>
+                <p style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600, margin: "6px 0 0" }}>
+                  {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                </p>
+                <p style={{ fontSize: "11px", color: "#888", margin: "1px 0 0" }}>Dicetak: {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+
+              <div style={{ borderTop: "1px dashed #ddd", padding: "14px 0 6px" }}>
+                <p style={{ fontSize: "11px", color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Rincian per Metode</p>
+                {metList.length === 0 ? (
+                  <p style={{ fontSize: "12px", color: "#888", margin: "0 0 10px" }}>Belum ada transaksi lunas hari ini.</p>
+                ) : metList.map(m => (
+                  <div key={m.metode} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "9px" }}>
+                    <span style={{ fontSize: "12px", color: "#1A1A2E" }}>
+                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: METODE_WARNA[m.metode], marginRight: "7px" }} />
+                      {m.metode} <span style={{ color: "#888" }}>({m.jumlah}×)</span>
+                    </span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#1A1A2E" }}>{fmtRupiah(m.total)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: "#f0fdf4", borderRadius: "12px", padding: "14px", textAlign: "center", margin: "10px 0 14px" }}>
+                <p style={{ fontSize: "11px", color: "#059669", fontWeight: 700, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Kas Masuk (Lunas)</p>
+                <p style={{ fontSize: "26px", fontWeight: 900, color: "#059669", margin: 0 }}>{fmtRupiah(totalLunas)}</p>
+              </div>
+
+              <div style={{ borderTop: "1px dashed #ddd", paddingTop: "12px" }}>
+                {[
+                  { label: "Total pasien hari ini", val: String(pasienList.length) },
+                  { label: "Transaksi lunas", val: String(lunas.length) },
+                  { label: "Belum bayar (selesai)", val: `${belum.length} · ${fmtRupiah(totalBelum)}` },
+                ].map(r => (
+                  <div key={r.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "7px" }}>
+                    <span style={{ fontSize: "12px", color: "#888", fontWeight: 600 }}>{r.label}</span>
+                    <span style={{ fontSize: "12px", color: "#1A1A2E", fontWeight: 600 }}>{r.val}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
+                <div style={{ textAlign: "center", minWidth: "150px", fontSize: "12px" }}>
+                  <p style={{ margin: "0 0 40px", color: "#888" }}>Petugas Kasir,</p>
+                  <div style={{ borderTop: "1px solid #333", paddingTop: "5px" }}>
+                    <p style={{ fontSize: "11px", color: "#888", margin: 0 }}>(................................)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="nota-no-print" style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                <button onClick={() => window.print()} style={{ flex: 1, background: "#6C5CE7", border: "none", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}>
+                  <Printer size={14} /> Cetak Laporan
+                </button>
+                <button onClick={() => setTutupKasOpen(false)} style={{ flex: 1, background: "rgba(108,92,231,0.08)", border: "1px solid rgba(108,92,231,0.2)", borderRadius: "12px", padding: "12px", color: "#6C5CE7", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", top: "20px", right: "20px", zIndex: 9999, background: "#fff", borderLeft: "4px solid #10b981", borderRadius: "12px", padding: "14px 18px", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", gap: "10px", minWidth: "280px" }}>
@@ -335,9 +421,15 @@ export default function KasirPage() {
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Kasir</h1>
-        <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0", textTransform: "capitalize" }}>{todayStr}</p>
+      <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>Kasir</h1>
+          <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0", textTransform: "capitalize" }}>{todayStr}</p>
+        </div>
+        <button className="k-btn" onClick={() => setTutupKasOpen(true)}
+          style={{ display: "flex", alignItems: "center", gap: "7px", padding: "10px 16px", borderRadius: "12px", border: "1px solid var(--accent)", background: "rgba(108,92,231,0.08)", color: "var(--accent)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          <TrendingUp size={15} /> Tutup Kas Hari Ini
+        </button>
       </div>
 
       {/* Skeleton while loading */}
