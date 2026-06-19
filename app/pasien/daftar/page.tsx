@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
-import { Users, ArrowLeft, Search, X, Clock, CheckCircle2, Stethoscope, Download } from "lucide-react";
+import { Users, ArrowLeft, Search, X, Clock, CheckCircle2, Stethoscope, Download, Lock, Pill } from "lucide-react";
 
 type PasienRecord = {
   nomor_antrian: number;
@@ -14,7 +14,13 @@ type PasienRecord = {
   status: string;
   tanggal_lahir?: string;
   nomor_rm?: string;
+  nomor_nik?: string;
   created_at: string;
+};
+
+type RM = {
+  nomor_antrian: number; visit_date: string; pasien_nama: string;
+  diagnosa?: string; tindakan?: string; obat?: string; dokter?: string; finalized?: boolean;
 };
 
 type UniquePatient = {
@@ -23,6 +29,8 @@ type UniquePatient = {
   no_hp: string;
   alamat: string;
   tanggal_lahir?: string;
+  nomor_rm?: string;
+  nomor_nik?: string;
   totalKunjungan: number;
   kunjungan: PasienRecord[];
   lastVisit: string;
@@ -33,6 +41,7 @@ export default function DaftarPasienPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<UniquePatient | null>(null);
+  const [rmByVisit, setRmByVisit] = useState<Map<string, RM>>(new Map());
 
   useEffect(() => {
     async function fetchPasien() {
@@ -46,14 +55,39 @@ export default function DaftarPasienPage() {
     fetchPasien();
   }, []);
 
+  // Ambil rekam medis pasien terpilih untuk timeline klinis
+  useEffect(() => {
+    if (!selectedPatient) { setRmByVisit(new Map()); return; }
+    const nama = selectedPatient.nama;
+    supabase.from("rekam_medis")
+      .select("nomor_antrian, visit_date, pasien_nama, diagnosa, tindakan, obat, dokter, finalized")
+      .ilike("pasien_nama", nama)
+      .then(({ data }) => {
+        const m = new Map<string, RM>();
+        (data || []).forEach((r: RM) => { m.set(`${r.nomor_antrian}__${r.visit_date}`, r); });
+        setRmByVisit(m);
+      });
+  }, [selectedPatient]);
+
+  function rmForVisit(k: PasienRecord): RM | undefined {
+    const d = new Date(k.created_at);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const utc = d.toISOString().split("T")[0];
+    return rmByVisit.get(`${k.nomor_antrian}__${local}`) || rmByVisit.get(`${k.nomor_antrian}__${utc}`);
+  }
+
   // Group records into unique patients — prefer nomor_rm, then no_hp, fallback to nama
   const uniquePatients = useMemo<UniquePatient[]>(() => {
     const map = new Map<string, UniquePatient>();
     records.forEach((r) => {
       const hp = r.no_hp?.trim().replace(/\D/g, "");
-      const key = (r.nomor_rm?.trim() && r.nomor_rm.trim())
-        || (hp && hp.length >= 6 ? hp : "")
-        || r.nama.trim().toLowerCase();
+      const nik = r.nomor_nik?.trim().replace(/\D/g, "");
+      // Prioritas identitas: NIK (paling kuat) -> No. RM -> No. HP -> nama
+      const key = (nik && nik.length === 16 ? "nik:" + nik : "")
+        || (r.nomor_rm?.trim() ? "rm:" + r.nomor_rm.trim() : "")
+        || (hp && hp.length >= 6 ? "hp:" + hp : "")
+        || "nm:" + r.nama.trim().toLowerCase();
       if (!map.has(key)) {
         map.set(key, {
           nama: r.nama,
@@ -61,6 +95,8 @@ export default function DaftarPasienPage() {
           no_hp: r.no_hp || "-",
           alamat: r.alamat || "-",
           tanggal_lahir: r.tanggal_lahir,
+          nomor_rm: r.nomor_rm || "",
+          nomor_nik: nik && nik.length === 16 ? nik : "",
           totalKunjungan: 1,
           kunjungan: [r],
           lastVisit: r.created_at,
@@ -73,6 +109,8 @@ export default function DaftarPasienPage() {
         if (!p.no_hp || p.no_hp === "-") p.no_hp = r.no_hp || "-";
         if (!p.alamat || p.alamat === "-") p.alamat = r.alamat || "-";
         if (!p.tanggal_lahir) p.tanggal_lahir = r.tanggal_lahir;
+        if (!p.nomor_rm && r.nomor_rm) p.nomor_rm = r.nomor_rm;
+        if (!p.nomor_nik && nik && nik.length === 16) p.nomor_nik = nik;
         if (new Date(r.created_at) > new Date(p.lastVisit)) p.lastVisit = r.created_at;
       }
     });
@@ -302,6 +340,13 @@ export default function DaftarPasienPage() {
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0" }}>
                   {selectedPatient.totalKunjungan} kunjungan · {selectedPatient.jenis_kelamin} · {hitungUsia(selectedPatient.tanggal_lahir)} · {selectedPatient.no_hp}
                 </p>
+                {(selectedPatient.nomor_rm || selectedPatient.nomor_nik) && (
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0" }}>
+                    {selectedPatient.nomor_rm ? `No. RM: ${selectedPatient.nomor_rm}` : ""}
+                    {selectedPatient.nomor_rm && selectedPatient.nomor_nik ? " · " : ""}
+                    {selectedPatient.nomor_nik ? `NIK: ${selectedPatient.nomor_nik}` : ""}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => setSelectedPatient(null)}
@@ -320,8 +365,9 @@ export default function DaftarPasienPage() {
                   .map((k) => {
                     const st = getStatusBadge(k.status);
                     const StatusIcon = st.icon;
+                    const rm = rmForVisit(k);
                     return (
-                      <div key={k.nomor_antrian} style={{
+                      <div key={`${k.nomor_antrian}-${k.created_at}`} style={{
                         background: "var(--bg-main)", border: "1px solid var(--border-color)",
                         borderRadius: "12px", padding: "14px 16px",
                         display: "flex", alignItems: "flex-start", gap: "12px",
@@ -338,7 +384,31 @@ export default function DaftarPasienPage() {
                             }}>{k.status}</span>
                           </div>
                           <p style={{ fontSize: "13px", color: "var(--text-primary)", margin: "0 0 4px", fontWeight: 500 }}>{k.keluhan}</p>
-                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0 }}>{formatDate(k.created_at)}</p>
+                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0 }}>{formatDate(k.created_at)}{rm?.dokter ? ` · ${rm.dokter}` : ""}</p>
+
+                          {/* Rekam medis kunjungan ini */}
+                          {rm && (rm.diagnosa || rm.tindakan || rm.obat) && (
+                            <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed var(--border-color)", display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {([
+                                { label: "Diagnosa", val: rm.diagnosa, icon: Stethoscope },
+                                { label: "Tindakan", val: rm.tindakan, icon: CheckCircle2 },
+                                { label: "Obat", val: rm.obat, icon: Pill },
+                              ] as const).filter(x => x.val).map(({ label, val, icon: Ic }) => (
+                                <div key={label} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                                  <Ic size={12} color="var(--accent)" style={{ flexShrink: 0, marginTop: "2px" }} />
+                                  <div style={{ minWidth: 0 }}>
+                                    <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+                                    <p style={{ fontSize: "12px", color: "var(--text-primary)", margin: 0, lineHeight: 1.4, whiteSpace: "pre-line" }}>{val}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              {rm.finalized && (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", alignSelf: "flex-start", marginTop: "2px", padding: "2px 8px", borderRadius: "20px", background: "rgba(16,185,129,0.1)", color: "#059669", fontSize: "10px", fontWeight: 700, border: "1px solid rgba(16,185,129,0.25)" }}>
+                                  <Lock size={10} /> RME Terkunci
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
