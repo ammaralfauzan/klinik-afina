@@ -23,6 +23,7 @@ const ACCESS: Record<string, Role[]> = {
   "/rekam-medis":   ["admin", "dokter", "apoteker"],
   "/kasir":         ["admin", "kasir"],
   "/laporan":       ["admin", "kasir"],
+  "/audit":         ["admin"],
   "/pengaturan":    ["admin"],
 };
 

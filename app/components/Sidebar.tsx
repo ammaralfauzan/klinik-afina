@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List, FileText, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, UserPlus, List, FileText, CreditCard, ShieldCheck } from "lucide-react";
 import { SidebarTourButton } from "./AppTour";
 import Image from "next/image";
 import { supabase } from "../../lib/supabase";
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { label: "Rekam Medis", icon: FileText, href: "/rekam-medis" },
   { label: "Kasir", icon: CreditCard, href: "/kasir" },
   { label: "Laporan", icon: BarChart3, href: "/laporan" },
+  { label: "Log Aktivitas", icon: ShieldCheck, href: "/audit" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ];
 
