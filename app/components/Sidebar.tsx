@@ -6,6 +6,8 @@ import { LayoutDashboard, Users, ClipboardList, BarChart3, Settings, LogOut, Use
 import { SidebarTourButton } from "./AppTour";
 import Image from "next/image";
 import { supabase } from "../../lib/supabase";
+import { useRole } from "./RoleProvider";
+import { canAccess } from "../../lib/roles";
 
 type NavItem = {
   label: string;
@@ -34,6 +36,19 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { dark } = useTheme();
   const router = useRouter();
+  const { role } = useRole();
+
+  // Saring menu sesuai peran (sub-menu ikut disaring).
+  const visibleNav = navItems
+    .map((item) => {
+      if (item.subItems) {
+        const subs = item.subItems.filter((s) => canAccess(role, s.href));
+        if (subs.length === 0 && !canAccess(role, item.href)) return null;
+        return { ...item, subItems: subs.length ? subs : undefined, href: subs[0]?.href || item.href };
+      }
+      return canAccess(role, item.href) ? item : null;
+    })
+    .filter((x): x is NavItem => x !== null);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -144,7 +159,7 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "14px 10px", display: "flex", flexDirection: "column", gap: "2px" }}>
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon;
             const hasSubItems = !!item.subItems;
             const isGroupActive = hasSubItems
@@ -252,7 +267,7 @@ export default function Sidebar() {
       {/* MOBILE BOTTOM NAV — 4 item terlihat, sisanya scroll kanan */}
       <div className="mobile-bottomnav-wrap">
         <nav className="mobile-bottomnav">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon;
             const href = item.subItems ? item.subItems[0].href : item.href;
             const isActive = item.subItems
