@@ -21,6 +21,7 @@ const ACCESS: Record<string, Role[]> = {
   "/pasien/daftar": ["admin", "loket", "dokter", "kasir", "apoteker"],
   "/pasien":        ["admin", "loket"],          // registrasi pasien baru
   "/rekam-medis":   ["admin", "dokter", "apoteker"],
+  "/farmasi":       ["admin", "apoteker"],
   "/kasir":         ["admin", "kasir"],
   "/laporan":       ["admin", "kasir"],
   "/audit":         ["admin"],
